@@ -228,11 +228,20 @@ export default class RollupTileGrid extends LightningElement {
     // Track per-tile timeouts (not reactive).
     _tileTimeouts = {};
 
+    // Bound window click handler (for outside-click closing).
+    _windowClickHandler;
+
     // ------------- Lifecycle -------------
 
     connectedCallback() {
         // Build the tiles from the design-time attributes.
         this.initializeTilesFromConfig();
+
+        // Global click listener to close menus when clicking outside the component.
+        if (typeof window !== 'undefined') {
+            this._windowClickHandler = this.handleWindowClick.bind(this);
+            window.addEventListener('click', this._windowClickHandler);
+        }
     }
 
     renderedCallback() {
@@ -260,6 +269,12 @@ export default class RollupTileGrid extends LightningElement {
             }
         });
         this._tileTimeouts = {};
+
+        // Remove global click listener.
+        if (this._windowClickHandler && typeof window !== 'undefined') {
+            window.removeEventListener('click', this._windowClickHandler);
+            this._windowClickHandler = null;
+        }
     }
 
     // Catch unexpected errors so they don't break the entire record page.
@@ -844,6 +859,56 @@ export default class RollupTileGrid extends LightningElement {
         }
     }
 
+    // ------------- Dropdown / click handling -------------
+
+    /**
+     * Root click handler for clicks *inside* the component.
+     * If you click anywhere that's not inside a gear menu,
+     * close any open aggregation menus.
+     */
+    handleRootClick() {
+        this.closeAllAggregationMenus();
+    }
+
+    /**
+     * Global window click handler, to close menus when clicking completely
+     * outside the component.
+     */
+    handleWindowClick(event) {
+        if (!this.template) {
+            return;
+        }
+
+        // If click is inside this component, let handleRootClick deal with it.
+        if (this.template.contains(event.target)) {
+            return;
+        }
+
+        this.closeAllAggregationMenus();
+    }
+
+    /**
+     * Close all aggregation menus (used by outside-click + root click).
+     */
+    closeAllAggregationMenus() {
+        let anyOpen = false;
+        const updated = this.tiles.map((tile) => {
+            if (tile.isAggregationMenuOpen) {
+                anyOpen = true;
+                const next = {
+                    ...tile,
+                    isAggregationMenuOpen: false
+                };
+                return this.recomputeTileDerivedFields(next);
+            }
+            return tile;
+        });
+
+        if (anyOpen) {
+            this.tiles = updated;
+        }
+    }
+
     // ------------- UI handlers for per-tile controls -------------
 
     handleGearClick(event) {
@@ -854,14 +919,25 @@ export default class RollupTileGrid extends LightningElement {
         }
 
         this.tiles = this.tiles.map((tile) => {
-            if (tile.index !== index) {
-                return tile;
+            if (tile.index === index) {
+                // Toggle this tile's menu.
+                const next = {
+                    ...tile,
+                    isAggregationMenuOpen: !tile.isAggregationMenuOpen
+                };
+                return this.recomputeTileDerivedFields(next);
             }
-            const next = {
-                ...tile,
-                isAggregationMenuOpen: !tile.isAggregationMenuOpen
-            };
-            return this.recomputeTileDerivedFields(next);
+
+            // Close all other menus when opening a new one.
+            if (tile.isAggregationMenuOpen) {
+                const next = {
+                    ...tile,
+                    isAggregationMenuOpen: false
+                };
+                return this.recomputeTileDerivedFields(next);
+            }
+
+            return tile;
         });
     }
 
