@@ -8,21 +8,26 @@
     margin-bottom: 0.75rem;
 }
 
-.st-rollup-grid__header-row {
-    /* layout handled by SLDS grid classes */
+.st-rollup-grid__title-row {
+    gap: 0.25rem;
 }
 
-.st-rollup-grid__header-text {
-    font-size: 1.4rem; /* roughly 2x body text */
+.st-rollup-grid__title {
+    font-size: 1.4rem; /* nice, modern header size (roughly 2x body text) */
     font-weight: 600;
 }
 
-.st-rollup-grid__header-help {
+.st-rollup-grid__help-icon {
     margin-left: 0.25rem;
 }
 
-/* Tiles grid */
-.st-rollup-grid__body {
+.st-rollup-grid__toolbar {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Grid of tiles */
+.st-rollup-grid__tiles {
     display: grid;
     gap: 0.75rem;
 }
@@ -54,7 +59,7 @@
 }
 
 .st-rollup-tile_large .st-rollup-tile__value {
-    font-size: 1.4rem; /* ~20% larger than compact */
+    font-size: 1.4rem; /* ~20%+ larger than compact */
 }
 
 /* Large / "Square" style (value ~2x bigger) */
@@ -64,7 +69,7 @@
 }
 
 .st-rollup-tile_square .st-rollup-tile__value {
-    font-size: 2rem; /* 2x-ish bump vs compact */
+    font-size: 2.0rem; /* 2x-ish bump vs compact */
     line-height: 1.1;
 }
 
@@ -73,12 +78,8 @@
     margin-bottom: 0.35rem;
 }
 
-.st-rollup-tile__title {
+.st-rollup-tile__label-wrapper {
     min-width: 0;
-}
-
-.st-rollup-tile__title-help {
-    margin-left: 0.25rem;
 }
 
 .st-rollup-tile__label {
@@ -112,7 +113,13 @@
     font-weight: 600;
 }
 
-.st-rollup-tile__option-check {
+.st-rollup-gear-menu__item-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.st-rollup-gear-menu__check {
     margin-left: 0.5rem;
 }
 
@@ -135,12 +142,9 @@
     color: #16325c; /* SLDS neutral text color */
 }
 
-/* Error text – allow wrapping so long messages are visible */
+/* Error text */
 .st-rollup-tile__error {
     font-size: 0.8rem;
-    white-space: normal;
-    word-break: break-word;
-    overflow-wrap: anywhere;
 }
 
 /* Summary (tooltip text under value) */
@@ -156,7 +160,7 @@
 
 /* Responsive tweak: on small screens, ensure grid gap is reasonable */
 @media (max-width: 30rem) {
-    .st-rollup-grid__body {
+    .st-rollup-grid__tiles {
         gap: 0.5rem;
     }
 }

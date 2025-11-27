@@ -1,117 +1,190 @@
 <template>
     <section class="st-rollup-grid" onclick={handleRootClick}>
-        <!-- Header + Refresh -->
+        <!-- Header + toolbar (header text + help + Refresh button) -->
         <template if:true={hasHeaderOrToolbar}>
-            <div class="st-rollup-grid__header-row slds-grid slds-grid_align-spread slds-m-bottom_small">
-                <div class="st-rollup-grid__header slds-grid slds-grid_vertical-align-center">
+            <div
+                class="st-rollup-grid__header slds-grid slds-grid_vertical-align-center slds-wrap slds-m-bottom_small"
+            >
+                <div class="slds-col slds-grow">
                     <template if:true={hasHeader}>
-                        <span class="st-rollup-grid__header-text slds-text-heading_small">
-                            {headerText}
-                        </span>
-                        <template if:true={headerHelpText}>
-                            <lightning-helptext
-                                class="st-rollup-grid__header-help"
-                                content={headerHelpText}>
-                            </lightning-helptext>
-                        </template>
+                        <div
+                            class="slds-grid slds-grid_vertical-align-center slds-wrap st-rollup-grid__title-row"
+                        >
+                            <h2
+                                class="st-rollup-grid__title slds-truncate"
+                                title={headerText}
+                            >
+                                {headerText}
+                            </h2>
+
+                            <template if:true={headerHelpText}>
+                                <lightning-helptext
+                                    class="st-rollup-grid__help-icon"
+                                    content={headerHelpText}
+                                ></lightning-helptext>
+                            </template>
+                        </div>
                     </template>
                 </div>
 
-                <template if:true={showRefreshButtonEffective}>
-                    <lightning-button-icon
-                        icon-name="utility:refresh"
-                        alternative-text="Refresh rollups"
-                        variant="bare"
-                        size="small"
-                        onclick={handleRefreshAllClick}>
-                    </lightning-button-icon>
-                </template>
+                <div class="slds-col slds-no-flex st-rollup-grid__toolbar">
+                    <template if:true={showRefreshButtonEffective}>
+                        <lightning-button
+                            variant="neutral"
+                            label="Refresh"
+                            icon-name="utility:refresh"
+                            onclick={handleRefreshAllClick}
+                        ></lightning-button>
+                    </template>
+                </div>
             </div>
         </template>
 
-        <!-- Tiles -->
-        <div class="st-rollup-grid__body" style={gridStyle}>
-            <template for:each={tiles} for:item="tile">
-                <article key={tile.index} class={tileContainerClass}>
-                    <!-- Tile header: title + (i) + gear -->
-                    <div class="st-rollup-tile__header slds-grid slds-grid_align-spread slds-m-bottom_x-small">
-                        <div class="slds-grid slds-grid_vertical-align-center st-rollup-tile__title">
-                            <span class="slds-truncate" title={tile.label}>{tile.label}</span>
+        <!-- Global configuration error (child object / relationship / recordId) -->
+        <template if:true={globalConfigError}>
+            <div class="slds-box slds-theme_error slds-m-bottom_small">
+                <p class="slds-text-body_regular">
+                    {globalConfigError}
+                </p>
+            </div>
+        </template>
 
-                            <!-- Small info icon next to title; shows summary text -->
-                            <lightning-helptext
-                                class="st-rollup-tile__title-help"
-                                content={tile.summaryLabel}>
-                            </lightning-helptext>
+        <!-- Tile grid -->
+        <div
+            class="st-rollup-grid__tiles slds-grid slds-wrap"
+            style={gridStyle}
+        >
+            <template for:each={tiles} for:item="tile">
+                <article
+                    key={tile.index}
+                    class={tileContainerClass}
+                >
+                    <!-- Tile header: label + gear menu -->
+                    <div
+                        class="st-rollup-tile__header slds-grid slds-grid_vertical-align-start"
+                    >
+                        <div
+                            class="slds-col slds-grow slds-truncate st-rollup-tile__label-wrapper"
+                        >
+                            <span
+                                class="st-rollup-tile__label slds-truncate"
+                                title={tile.label}
+                            >
+                                {tile.label}
+                            </span>
                         </div>
 
-                        <!-- Gear with dropdown -->
-                        <div class={tile.gearMenuClass}>
-                            <lightning-button-icon
-                                data-index={tile.index}
-                                icon-name="utility:settings"
-                                variant="bare"
-                                size="x-small"
-                                alternative-text="Change aggregation"
-                                title={tile.summaryLabel}
-                                onclick={handleGearClick}>
-                            </lightning-button-icon>
+                        <div
+                            class="slds-col slds-no-flex st-rollup-tile__gear-wrapper"
+                        >
+                            <div class={tile.gearMenuClass}>
+                                <!-- Gear button (hover shows summary, click opens aggregation dropdown) -->
+                                <button
+                                    class="slds-button slds-button_icon slds-button_icon-border-filled"
+                                    title={tile.summaryLabel}
+                                    aria-label={tile.summaryLabel}
+                                    data-index={tile.index}
+                                    onclick={handleGearClick}
+                                >
+                                    <lightning-icon
+                                        icon-name="utility:settings"
+                                        size="x-small"
+                                        alternative-text="Change rollup aggregation"
+                                    ></lightning-icon>
+                                    <span class="slds-assistive-text">
+                                        Change rollup aggregation
+                                    </span>
+                                </button>
 
-                            <div class="slds-dropdown slds-dropdown_right">
-                                <ul class="slds-dropdown__list" role="menu">
-                                    <template for:each={tile.aggregationMenuOptions} for:item="opt">
-                                        <li key={opt.value} class={opt.itemClass} role="presentation">
-                                            <a
-                                                role="menuitemradio"
+                                <!-- Aggregation dropdown menu -->
+                                <div
+                                    class="slds-dropdown slds-dropdown_right slds-dropdown_actions"
+                                >
+                                    <ul
+                                        class="slds-dropdown__list"
+                                        role="menu"
+                                    >
+                                        <template
+                                            for:each={tile.aggregationMenuOptions}
+                                            for:item="opt"
+                                        >
+                                            <li
+                                                key={opt.value}
+                                                role="menuitemcheckbox"
+                                                class={opt.itemClass}
                                                 aria-checked={opt.ariaChecked}
-                                                data-index={tile.index}
-                                                data-value={opt.value}
-                                                onclick={handleAggregationMenuClick}>
-                                                <span class="slds-truncate" title={opt.label}>{opt.label}</span>
-                                                <template if:true={opt.isSelected}>
-                                                    <lightning-icon
-                                                        icon-name="utility:check"
-                                                        size="x-small"
-                                                        class="st-rollup-tile__option-check">
-                                                    </lightning-icon>
-                                                </template>
-                                            </a>
-                                        </li>
-                                    </template>
-                                </ul>
+                                            >
+                                                <a
+                                                    href="javascript:void(0);"
+                                                    role="menuitem"
+                                                    class="st-rollup-gear-menu__item-link"
+                                                    data-index={tile.index}
+                                                    data-value={opt.value}
+                                                    onclick={handleAggregationMenuClick}
+                                                >
+                                                    <span
+                                                        class="slds-truncate"
+                                                        title={opt.label}
+                                                    >
+                                                        {opt.label}
+                                                    </span>
+                                                    <template if:true={opt.isSelected}>
+                                                        <lightning-icon
+                                                            icon-name="utility:check"
+                                                            size="x-small"
+                                                            class="st-rollup-gear-menu__check"
+                                                            alternative-text="Selected"
+                                                        ></lightning-icon>
+                                                    </template>
+                                                </a>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Tile body -->
+                    <!-- Tile body: value / loading / error / summary -->
                     <div class="st-rollup-tile__body">
+                        <!-- Loading -->
                         <template if:true={tile.isLoading}>
-                            <div class="slds-p-vertical_medium slds-grid slds-grid_align-center">
+                            <div
+                                class="st-rollup-tile__loading slds-grid slds-grid_align-center slds-grid_vertical-align-center"
+                            >
                                 <lightning-spinner
                                     alternative-text="Loading rollup"
-                                    size="small">
-                                </lightning-spinner>
+                                    size="small"
+                                ></lightning-spinner>
                             </div>
                         </template>
 
+                        <!-- Loaded -->
                         <template if:false={tile.isLoading}>
-                            <!-- Error (wrap text so it doesn’t get clipped) -->
+                            <!-- Error state -->
                             <template if:true={tile.error}>
                                 <p
-                                    class="st-rollup-tile__error slds-text-color_error"
-                                    style="white-space: normal; word-break: break-word; overflow-wrap: anywhere;">
+                                    class="st-rollup-tile__error slds-text-color_error slds-truncate"
+                                    title={tile.error}
+                                >
                                     {tile.error}
                                 </p>
                             </template>
 
-                            <!-- Value + summary -->
+                            <!-- Normal state -->
                             <template if:false={tile.error}>
-                                <div class="st-rollup-tile__value slds-text-heading_medium">
+                                <p
+                                    class="st-rollup-tile__value slds-truncate"
+                                    title={tile.displayValue}
+                                >
                                     {tile.displayValue}
-                                </div>
+                                </p>
 
-                                <template if:true={tile.summaryLabel}>
-                                    <p class="st-rollup-tile__summary slds-text-body_small">
+                                <template if:true={tile.hasRecordCount}>
+                                    <p
+                                        class="st-rollup-tile__summary slds-text-body_small slds-truncate"
+                                        title={tile.summaryLabel}
+                                    >
                                         {tile.summaryLabel}
                                     </p>
                                 </template>
