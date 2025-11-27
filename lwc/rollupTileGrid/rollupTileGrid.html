@@ -1,5 +1,5 @@
 <template>
-    <section class="st-rollup-grid">
+    <section class="st-rollup-grid" onclick={handleRootClick}>
         <!-- Header + toolbar (header text + help + Refresh button) -->
         <template if:true={hasHeaderOrToolbar}>
             <div
@@ -117,6 +117,7 @@
                                                 <a
                                                     href="javascript:void(0);"
                                                     role="menuitem"
+                                                    class="st-rollup-gear-menu__item-link"
                                                     data-index={tile.index}
                                                     data-value={opt.value}
                                                     onclick={handleAggregationMenuClick}
@@ -127,6 +128,14 @@
                                                     >
                                                         {opt.label}
                                                     </span>
+                                                    <template if:true={opt.isSelected}>
+                                                        <lightning-icon
+                                                            icon-name="utility:check"
+                                                            size="x-small"
+                                                            class="st-rollup-gear-menu__check"
+                                                            alternative-text="Selected"
+                                                        ></lightning-icon>
+                                                    </template>
                                                 </a>
                                             </li>
                                         </template>
