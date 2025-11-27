@@ -107,6 +107,22 @@
     display: block;
 }
 
+/* Highlight selected aggregation option */
+.st-rollup-gear-menu .slds-dropdown__item.slds-is-selected {
+    background-color: #f3f2f2;
+    font-weight: 600;
+}
+
+.st-rollup-gear-menu__item-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.st-rollup-gear-menu__check {
+    margin-left: 0.5rem;
+}
+
 /* Tile body */
 .st-rollup-tile__body {
     display: flex;
