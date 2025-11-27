@@ -1,0 +1,150 @@
+/* Root container */
+.st-rollup-grid {
+    display: block;
+}
+
+/* Header / toolbar */
+.st-rollup-grid__header {
+    margin-bottom: 0.75rem;
+}
+
+.st-rollup-grid__title-row {
+    gap: 0.25rem;
+}
+
+.st-rollup-grid__title {
+    font-size: 1.4rem; /* nice, modern header size (roughly 2x body text) */
+    font-weight: 600;
+}
+
+.st-rollup-grid__help-icon {
+    margin-left: 0.25rem;
+}
+
+.st-rollup-grid__toolbar {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Grid of tiles */
+.st-rollup-grid__tiles {
+    display: grid;
+    gap: 0.75rem;
+}
+
+/* Base tile */
+.st-rollup-tile {
+    position: relative;
+    background: #ffffff;
+    border-radius: 0.25rem;
+    border: 1px solid #e5e5e5;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    padding: 0.75rem 0.75rem 0.5rem;
+    min-height: 4.5rem;
+    box-sizing: border-box;
+}
+
+/* Compact (Small) */
+.st-rollup-tile_compact {
+    padding: 0.5rem 0.5rem 0.25rem;
+}
+
+.st-rollup-tile_compact .st-rollup-tile__value {
+    font-size: 1.1rem;
+}
+
+/* Medium style */
+.st-rollup-tile_large {
+    padding: 0.9rem 0.9rem 0.6rem;
+}
+
+.st-rollup-tile_large .st-rollup-tile__value {
+    font-size: 1.4rem; /* ~20%+ larger than compact */
+}
+
+/* Large / "Square" style (value ~2x bigger) */
+.st-rollup-tile_square {
+    padding: 1rem;
+    min-height: 6.5rem;
+}
+
+.st-rollup-tile_square .st-rollup-tile__value {
+    font-size: 2.0rem; /* 2x-ish bump vs compact */
+    line-height: 1.1;
+}
+
+/* Tile header: label + gear */
+.st-rollup-tile__header {
+    margin-bottom: 0.35rem;
+}
+
+.st-rollup-tile__label-wrapper {
+    min-width: 0;
+}
+
+.st-rollup-tile__label {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Gear menu */
+.st-rollup-tile__gear-wrapper {
+    margin-left: 0.25rem;
+}
+
+.st-rollup-gear-menu {
+    position: relative;
+    display: inline-block;
+}
+
+/* Dropdown alignment – opens to the right so it doesn’t get clipped */
+.st-rollup-gear-menu .slds-dropdown {
+    min-width: 8rem;
+}
+
+/* When menu is open, show dropdown (slds-is-open class is applied in JS) */
+.st-rollup-gear-menu.slds-is-open .slds-dropdown {
+    display: block;
+}
+
+/* Tile body */
+.st-rollup-tile__body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Loading spinner */
+.st-rollup-tile__loading {
+    min-height: 2.5rem;
+}
+
+/* Value */
+.st-rollup-tile__value {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #16325c; /* SLDS neutral text color */
+}
+
+/* Error text */
+.st-rollup-tile__error {
+    font-size: 0.8rem;
+}
+
+/* Summary (e.g., "2 records SUM") */
+.st-rollup-tile__summary {
+    margin-top: 0.15rem;
+    color: #706e6b; /* SLDS subtle text */
+}
+
+/* Slightly tighter spacing on compact tiles */
+.st-rollup-tile_compact .st-rollup-tile__summary {
+    font-size: 0.7rem;
+}
+
+/* Responsive tweak: on small screens, ensure grid gap is reasonable */
+@media (max-width: 30rem) {
+    .st-rollup-grid__tiles {
+        gap: 0.5rem;
+    }
+}
