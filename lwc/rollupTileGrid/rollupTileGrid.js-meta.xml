@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>61.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Rollup Tile Grid</masterLabel>
+    <description>
+        Grid layout that renders multiple rollup tiles with a single Refresh button.
+        Standalone component – no additional tile LWCs required.
+    </description>
+    <targets>
+        <target>lightning__RecordPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage">
+            <!-- Layout controls -->
+            <property
+                name="rows"
+                type="Integer"
+                label="Number of rows"
+                description="Number of tile rows to display (1–5)."
+                default="1"
+            />
+            <property
+                name="columns"
+                type="Integer"
+                label="Number of columns"
+                description="Number of tile columns to display (1–5)."
+                default="3"
+            />
+
+            <!-- Optional header above the grid -->
+            <property
+                name="headerText"
+                type="String"
+                label="Header text (optional)"
+                description="Optional header text displayed above the grid, e.g. 'Project Rollups'."
+            />
+            <property
+                name="headerHelpText"
+                type="String"
+                label="Header help text (optional)"
+                description="Optional help text displayed in a help icon next to the header."
+            />
+
+            <!-- Shared rollup configuration -->
+            <property
+                name="childObjectApiName"
+                type="String"
+                label="Child Object"
+                description="Child object to roll up from for all tiles. Only objects with a lookup to this record type are shown."
+                required="true"
+                datasource="apex://RollupChildObjectPicklist"
+            />
+            <property
+                name="relationshipFieldApiName"
+                type="String"
+                label="Relationship Field (lookup on child)"
+                description="Lookup field on the child object that points back to this record (e.g. Contact.AccountId)."
+                required="true"
+                datasource="apex://RollupRelationshipFieldPicklist"
+            />
+            <property
+                name="styleVariant"
+                type="String"
+                label="Tile Size / Style"
+                description="Choose how compact each tile should appear."
+                datasource="Small,Medium,Large"
+                default="Small"
+            />
+            <property
+                name="allowUserToChangeAggregation"
+                type="Boolean"
+                label="Allow users to change aggregation type at runtime"
+                description="Legacy flag – the gear menu on each tile now controls aggregation."
+                default="false"
+            />
+            <property
+                name="decimalPlaces"
+                type="Integer"
+                label="Default decimal places for numeric values"
+                description="Maximum number of decimal places to display for numeric aggregations (per-tile overrides are available)."
+                default="2"
+            />
+
+            <!-- Refresh behavior (single Refresh button in the header) -->
+            <property
+                name="showRefreshButton"
+                type="Boolean"
+                label="Show Refresh All button"
+                description="Check to show a single Refresh button for all tiles in this grid. Clear to hide it entirely."
+                default="true"
+            />
+
+            <!-- Tile 1 -->
+            <property
+                name="tile1Label"
+                type="String"
+                label="Tile 1 Label"
+                description="Label shown at the top of tile 1."
+            />
+            <property
+                name="tile1AggregateFieldApiName"
+                type="String"
+                label="Tile 1 Aggregate Field"
+                description="Field on the child object to aggregate for tile 1."
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile1InitialAggregationType"
+                type="String"
+                label="Tile 1 Aggregation Type"
+                description="Aggregation to perform by default for tile 1."
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile1FilterCondition"
+                type="String"
+                label="Tile 1 Additional SOQL filter (optional)"
+                description="Optional SOQL fragment to AND into the WHERE clause for tile 1."
+            />
+            <property
+                name="tile1DecimalPlaces"
+                type="Integer"
+                label="Tile 1 decimal places (optional)"
+                description="Maximum number of decimal places for tile 1. Leave blank to use the default."
+            />
+
+            <!-- Tile 2 -->
+            <property name="tile2Label" type="String" label="Tile 2 Label" />
+            <property
+                name="tile2AggregateFieldApiName"
+                type="String"
+                label="Tile 2 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile2InitialAggregationType"
+                type="String"
+                label="Tile 2 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile2FilterCondition"
+                type="String"
+                label="Tile 2 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile2DecimalPlaces"
+                type="Integer"
+                label="Tile 2 decimal places (optional)"
+            />
+
+            <!-- Tile 3 -->
+            <property name="tile3Label" type="String" label="Tile 3 Label" />
+            <property
+                name="tile3AggregateFieldApiName"
+                type="String"
+                label="Tile 3 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile3InitialAggregationType"
+                type="String"
+                label="Tile 3 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile3FilterCondition"
+                type="String"
+                label="Tile 3 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile3DecimalPlaces"
+                type="Integer"
+                label="Tile 3 decimal places (optional)"
+            />
+
+            <!-- Tile 4 -->
+            <property name="tile4Label" type="String" label="Tile 4 Label" />
+            <property
+                name="tile4AggregateFieldApiName"
+                type="String"
+                label="Tile 4 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile4InitialAggregationType"
+                type="String"
+                label="Tile 4 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile4FilterCondition"
+                type="String"
+                label="Tile 4 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile4DecimalPlaces"
+                type="Integer"
+                label="Tile 4 decimal places (optional)"
+            />
+
+            <!-- Tile 5 -->
+            <property name="tile5Label" type="String" label="Tile 5 Label" />
+            <property
+                name="tile5AggregateFieldApiName"
+                type="String"
+                label="Tile 5 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile5InitialAggregationType"
+                type="String"
+                label="Tile 5 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile5FilterCondition"
+                type="String"
+                label="Tile 5 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile5DecimalPlaces"
+                type="Integer"
+                label="Tile 5 decimal places (optional)"
+            />
+
+            <!-- Tile 6 -->
+            <property name="tile6Label" type="String" label="Tile 6 Label" />
+            <property
+                name="tile6AggregateFieldApiName"
+                type="String"
+                label="Tile 6 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile6InitialAggregationType"
+                type="String"
+                label="Tile 6 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile6FilterCondition"
+                type="String"
+                label="Tile 6 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile6DecimalPlaces"
+                type="Integer"
+                label="Tile 6 decimal places (optional)"
+            />
+
+            <!-- Tile 7 -->
+            <property name="tile7Label" type="String" label="Tile 7 Label" />
+            <property
+                name="tile7AggregateFieldApiName"
+                type="String"
+                label="Tile 7 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile7InitialAggregationType"
+                type="String"
+                label="Tile 7 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile7FilterCondition"
+                type="String"
+                label="Tile 7 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile7DecimalPlaces"
+                type="Integer"
+                label="Tile 7 decimal places (optional)"
+            />
+
+            <!-- Tile 8 -->
+            <property name="tile8Label" type="String" label="Tile 8 Label" />
+            <property
+                name="tile8AggregateFieldApiName"
+                type="String"
+                label="Tile 8 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile8InitialAggregationType"
+                type="String"
+                label="Tile 8 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile8FilterCondition"
+                type="String"
+                label="Tile 8 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile8DecimalPlaces"
+                type="Integer"
+                label="Tile 8 decimal places (optional)"
+            />
+
+            <!-- Tile 9 -->
+            <property name="tile9Label" type="String" label="Tile 9 Label" />
+            <property
+                name="tile9AggregateFieldApiName"
+                type="String"
+                label="Tile 9 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile9InitialAggregationType"
+                type="String"
+                label="Tile 9 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile9FilterCondition"
+                type="String"
+                label="Tile 9 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile9DecimalPlaces"
+                type="Integer"
+                label="Tile 9 decimal places (optional)"
+            />
+
+            <!-- Tile 10 -->
+            <property name="tile10Label" type="String" label="Tile 10 Label" />
+            <property
+                name="tile10AggregateFieldApiName"
+                type="String"
+                label="Tile 10 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile10InitialAggregationType"
+                type="String"
+                label="Tile 10 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile10FilterCondition"
+                type="String"
+                label="Tile 10 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile10DecimalPlaces"
+                type="Integer"
+                label="Tile 10 decimal places (optional)"
+            />
+
+            <!-- Tile 11 -->
+            <property name="tile11Label" type="String" label="Tile 11 Label" />
+            <property
+                name="tile11AggregateFieldApiName"
+                type="String"
+                label="Tile 11 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile11InitialAggregationType"
+                type="String"
+                label="Tile 11 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile11FilterCondition"
+                type="String"
+                label="Tile 11 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile11DecimalPlaces"
+                type="Integer"
+                label="Tile 11 decimal places (optional)"
+            />
+
+            <!-- Tile 12 -->
+            <property name="tile12Label" type="String" label="Tile 12 Label" />
+            <property
+                name="tile12AggregateFieldApiName"
+                type="String"
+                label="Tile 12 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile12InitialAggregationType"
+                type="String"
+                label="Tile 12 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile12FilterCondition"
+                type="String"
+                label="Tile 12 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile12DecimalPlaces"
+                type="Integer"
+                label="Tile 12 decimal places (optional)"
+            />
+
+            <!-- Tile 13 -->
+            <property name="tile13Label" type="String" label="Tile 13 Label" />
+            <property
+                name="tile13AggregateFieldApiName"
+                type="String"
+                label="Tile 13 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile13InitialAggregationType"
+                type="String"
+                label="Tile 13 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile13FilterCondition"
+                type="String"
+                label="Tile 13 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile13DecimalPlaces"
+                type="Integer"
+                label="Tile 13 decimal places (optional)"
+            />
+
+            <!-- Tile 14 -->
+            <property name="tile14Label" type="String" label="Tile 14 Label" />
+            <property
+                name="tile14AggregateFieldApiName"
+                type="String"
+                label="Tile 14 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile14InitialAggregationType"
+                type="String"
+                label="Tile 14 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile14FilterCondition"
+                type="String"
+                label="Tile 14 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile14DecimalPlaces"
+                type="Integer"
+                label="Tile 14 decimal places (optional)"
+            />
+
+            <!-- Tile 15 -->
+            <property name="tile15Label" type="String" label="Tile 15 Label" />
+            <property
+                name="tile15AggregateFieldApiName"
+                type="String"
+                label="Tile 15 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile15InitialAggregationType"
+                type="String"
+                label="Tile 15 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile15FilterCondition"
+                type="String"
+                label="Tile 15 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile15DecimalPlaces"
+                type="Integer"
+                label="Tile 15 decimal places (optional)"
+            />
+
+            <!-- Tile 16 -->
+            <property name="tile16Label" type="String" label="Tile 16 Label" />
+            <property
+                name="tile16AggregateFieldApiName"
+                type="String"
+                label="Tile 16 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile16InitialAggregationType"
+                type="String"
+                label="Tile 16 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile16FilterCondition"
+                type="String"
+                label="Tile 16 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile16DecimalPlaces"
+                type="Integer"
+                label="Tile 16 decimal places (optional)"
+            />
+
+            <!-- Tile 17 -->
+            <property name="tile17Label" type="String" label="Tile 17 Label" />
+            <property
+                name="tile17AggregateFieldApiName"
+                type="String"
+                label="Tile 17 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile17InitialAggregationType"
+                type="String"
+                label="Tile 17 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile17FilterCondition"
+                type="String"
+                label="Tile 17 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile17DecimalPlaces"
+                type="Integer"
+                label="Tile 17 decimal places (optional)"
+            />
+
+            <!-- Tile 18 -->
+            <property name="tile18Label" type="String" label="Tile 18 Label" />
+            <property
+                name="tile18AggregateFieldApiName"
+                type="String"
+                label="Tile 18 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile18InitialAggregationType"
+                type="String"
+                label="Tile 18 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile18FilterCondition"
+                type="String"
+                label="Tile 18 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile18DecimalPlaces"
+                type="Integer"
+                label="Tile 18 decimal places (optional)"
+            />
+
+            <!-- Tile 19 -->
+            <property name="tile19Label" type="String" label="Tile 19 Label" />
+            <property
+                name="tile19AggregateFieldApiName"
+                type="String"
+                label="Tile 19 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile19InitialAggregationType"
+                type="String"
+                label="Tile 19 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile19FilterCondition"
+                type="String"
+                label="Tile 19 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile19DecimalPlaces"
+                type="Integer"
+                label="Tile 19 decimal places (optional)"
+            />
+
+            <!-- Tile 20 -->
+            <property name="tile20Label" type="String" label="Tile 20 Label" />
+            <property
+                name="tile20AggregateFieldApiName"
+                type="String"
+                label="Tile 20 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile20InitialAggregationType"
+                type="String"
+                label="Tile 20 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile20FilterCondition"
+                type="String"
+                label="Tile 20 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile20DecimalPlaces"
+                type="Integer"
+                label="Tile 20 decimal places (optional)"
+            />
+
+            <!-- Tile 21 -->
+            <property name="tile21Label" type="String" label="Tile 21 Label" />
+            <property
+                name="tile21AggregateFieldApiName"
+                type="String"
+                label="Tile 21 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile21InitialAggregationType"
+                type="String"
+                label="Tile 21 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile21FilterCondition"
+                type="String"
+                label="Tile 21 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile21DecimalPlaces"
+                type="Integer"
+                label="Tile 21 decimal places (optional)"
+            />
+
+            <!-- Tile 22 -->
+            <property name="tile22Label" type="String" label="Tile 22 Label" />
+            <property
+                name="tile22AggregateFieldApiName"
+                type="String"
+                label="Tile 22 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile22InitialAggregationType"
+                type="String"
+                label="Tile 22 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile22FilterCondition"
+                type="String"
+                label="Tile 22 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile22DecimalPlaces"
+                type="Integer"
+                label="Tile 22 decimal places (optional)"
+            />
+
+            <!-- Tile 23 -->
+            <property name="tile23Label" type="String" label="Tile 23 Label" />
+            <property
+                name="tile23AggregateFieldApiName"
+                type="String"
+                label="Tile 23 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile23InitialAggregationType"
+                type="String"
+                label="Tile 23 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile23FilterCondition"
+                type="String"
+                label="Tile 23 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile23DecimalPlaces"
+                type="Integer"
+                label="Tile 23 decimal places (optional)"
+            />
+
+            <!-- Tile 24 -->
+            <property name="tile24Label" type="String" label="Tile 24 Label" />
+            <property
+                name="tile24AggregateFieldApiName"
+                type="String"
+                label="Tile 24 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile24InitialAggregationType"
+                type="String"
+                label="Tile 24 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile24FilterCondition"
+                type="String"
+                label="Tile 24 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile24DecimalPlaces"
+                type="Integer"
+                label="Tile 24 decimal places (optional)"
+            />
+
+            <!-- Tile 25 -->
+            <property name="tile25Label" type="String" label="Tile 25 Label" />
+            <property
+                name="tile25AggregateFieldApiName"
+                type="String"
+                label="Tile 25 Aggregate Field"
+                datasource="apex://RollupAggregateFieldPicklist"
+            />
+            <property
+                name="tile25InitialAggregationType"
+                type="String"
+                label="Tile 25 Aggregation Type"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                default="SUM"
+            />
+            <property
+                name="tile25FilterCondition"
+                type="String"
+                label="Tile 25 Additional SOQL filter (optional)"
+            />
+            <property
+                name="tile25DecimalPlaces"
+                type="Integer"
+                label="Tile 25 decimal places (optional)"
+            />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>
