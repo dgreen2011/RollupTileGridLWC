@@ -6,7 +6,7 @@ const MAX_ROWS = 5;
 const MAX_COLUMNS = 5;
 const MAX_TILES = MAX_ROWS * MAX_COLUMNS;
 
-// Aggregation types used by the component + Apex
+// Canonical aggregation types this component + RollupService understand.
 const VALID_AGGREGATION_TYPES = [
     'SUM',
     'AVERAGE',
@@ -15,10 +15,12 @@ const VALID_AGGREGATION_TYPES = [
     'COUNT',
     'COUNT_DISTINCT',
     'CONCATENATE',
-    'CONCATENATE_DISTINCT'
+    'CONCATENATE_DISTINCT',
+    'FIRST',
+    'LAST'
 ];
 
-// Aggregations that produce numeric values
+// Aggregations that produce numeric values (used for number formatting).
 const NUMERIC_TYPES = [
     'SUM',
     'AVERAGE',
@@ -28,54 +30,61 @@ const NUMERIC_TYPES = [
     'COUNT_DISTINCT'
 ];
 
-// Aggregations that imply a numeric field (for field-type filtering)
+// Aggregations that imply a numeric field (for filtering by field type).
 const NUMERIC_FIELD_AGG_TYPES = ['SUM', 'AVERAGE', 'MAX', 'MIN'];
 
-// Aggregations that imply a text-like field (for field-type filtering)
+// Aggregations that imply a text-like field (for filtering by field type).
 const TEXT_FIELD_AGG_TYPES = ['CONCATENATE', 'CONCATENATE_DISTINCT'];
 
-// Simple "field category" buckets
+// Simple "field category" buckets used for deciding which aggregation
+// types to show in the dropdown for a tile.
 const FIELD_CATEGORY = {
     NUMERIC: 'numeric',
     TEXT: 'text',
     UNKNOWN: 'unknown'
 };
 
-// Allowed aggregation sets per field category
+// Allowed aggregation sets per field category.
 const NUMERIC_FIELD_ALLOWED_AGG_TYPES = new Set([
     'SUM',
     'AVERAGE',
     'MAX',
     'MIN',
     'COUNT',
-    'COUNT_DISTINCT'
+    'COUNT_DISTINCT',
+    'FIRST',
+    'LAST'
 ]);
 
 const TEXT_FIELD_ALLOWED_AGG_TYPES = new Set([
     'CONCATENATE',
     'CONCATENATE_DISTINCT',
     'COUNT',
-    'COUNT_DISTINCT'
+    'COUNT_DISTINCT',
+    'FIRST',
+    'LAST'
 ]);
 
-// Soft timeout so we never spin forever
+// Soft timeout so we never spin forever on a bad call.
 const LOAD_TIMEOUT_MS = 15000;
 
-// Base aggregation options in the dropdown (note: First/Last removed)
+// Base aggregation options (shared by all tiles).
 const BASE_AGGREGATION_OPTIONS = [
     { label: 'Average', value: 'AVERAGE' },
     { label: 'Concatenate', value: 'CONCATENATE' },
     { label: 'Concatenate Distinct', value: 'CONCATENATE_DISTINCT' },
     { label: 'Count', value: 'COUNT' },
     { label: 'Count Distinct', value: 'COUNT_DISTINCT' },
+    { label: 'First', value: 'FIRST' },
+    { label: 'Last', value: 'LAST' },
     { label: 'Max', value: 'MAX' },
     { label: 'Min', value: 'MIN' },
     { label: 'Sum', value: 'SUM' }
 ];
 
 /**
- * Normalize an aggregation type value into the canonical form used by this
- * component and RollupService (e.g., "avg" -> "AVERAGE").
+ * Normalize an aggregation type value into the canonical form used by
+ * this component and RollupService (e.g., "avg" -> "AVERAGE").
  */
 function normalizeAggTypeValue(raw) {
     if (raw === null || raw === undefined) {
@@ -89,7 +98,8 @@ function normalizeAggTypeValue(raw) {
 }
 
 /**
- * Infer a field category from an initial aggregation type (best-effort).
+ * Infer a broad field category from an aggregation type. This is a heuristic
+ * used when we don't have explicit field metadata.
  */
 function inferFieldCategoryFromAggregationType(rawAggType) {
     const canonical = normalizeAggTypeValue(rawAggType);
@@ -106,8 +116,8 @@ function inferFieldCategoryFromAggregationType(rawAggType) {
 }
 
 /**
- * Final field category for a tile, taking into account runtime hints
- * (currency / percent flags).
+ * Finalize the field category for a tile, taking into account any runtime
+ * hints coming back from Apex (currency / percent flags).
  */
 function resolveFieldCategory(tile) {
     let category =
@@ -115,7 +125,8 @@ function resolveFieldCategory(tile) {
             ? tile.fieldCategory
             : FIELD_CATEGORY.UNKNOWN;
 
-    // If Apex tells us this is currency/percent, treat as numeric.
+    // If Apex tells us this is currency/percent, treat as numeric regardless
+    // of what was inferred from the initial aggregation type.
     if (tile && (tile.isCurrency || tile.isPercent)) {
         category = FIELD_CATEGORY.NUMERIC;
     }
@@ -124,8 +135,8 @@ function resolveFieldCategory(tile) {
 }
 
 /**
- * Allowed aggregations for a given field category.
- * If null is returned, that means "no filtering – show everything".
+ * Return the set of allowed aggregation types for a given field category.
+ * If we return null, it means "no filtering" – show all aggregation options.
  */
 function getAllowedAggregationsForCategory(category) {
     if (category === FIELD_CATEGORY.NUMERIC) {
@@ -148,17 +159,17 @@ export default class RollupTileGrid extends LightningElement {
     @api headerText;
     @api headerHelpText;
 
-    // Shared rollup config
+    // Shared rollup config for all tiles
     @api childObjectApiName;
     @api relationshipFieldApiName;
     @api styleVariant = 'Small';
     @api allowUserToChangeAggregation = false; // kept for compatibility
     @api decimalPlaces = 2;
 
-    // Single refresh button flag
-    @api showRefreshButton;
+    // Refresh behavior – single Refresh button in header
+    @api showRefreshButton; // default from meta.xml; treated as true if undefined
 
-    // Tile-specific @api properties (1–25)
+    // ---- Tile-specific @api properties (1–25) ----
     @api tile1Label;
     @api tile1AggregateFieldApiName;
     @api tile1InitialAggregationType;
@@ -309,17 +320,25 @@ export default class RollupTileGrid extends LightningElement {
     @api tile25FilterCondition;
     @api tile25DecimalPlaces;
 
-    // Internal state
+    // Internal state: array of tile view models (config + runtime state).
     tiles = [];
+
+    // Track whether we've kicked off the initial load.
     _initialized = false;
+
+    // Track per-tile timeouts (not reactive).
     _tileTimeouts = {};
+
+    // Bound window click handler (for outside-click closing).
     _windowClickHandler;
 
-    // -------- Lifecycle --------
+    // ------------- Lifecycle -------------
 
     connectedCallback() {
+        // Build the tiles from the design-time attributes.
         this.initializeTilesFromConfig();
 
+        // Global click listener to close menus when clicking outside the component.
         if (typeof window !== 'undefined') {
             this._windowClickHandler = this.handleWindowClick.bind(this);
             window.addEventListener('click', this._windowClickHandler);
@@ -327,12 +346,14 @@ export default class RollupTileGrid extends LightningElement {
     }
 
     renderedCallback() {
+        // Only run once, and only after recordId is available.
         if (this._initialized) {
             return;
         }
         if (!this.recordId) {
             return;
         }
+
         this._initialized = true;
 
         if (!this.globalConfigError) {
@@ -341,6 +362,7 @@ export default class RollupTileGrid extends LightningElement {
     }
 
     disconnectedCallback() {
+        // Clean up any pending timeouts.
         Object.keys(this._tileTimeouts).forEach((key) => {
             const id = this._tileTimeouts[key];
             if (id) {
@@ -349,12 +371,14 @@ export default class RollupTileGrid extends LightningElement {
         });
         this._tileTimeouts = {};
 
+        // Remove global click listener.
         if (this._windowClickHandler && typeof window !== 'undefined') {
             window.removeEventListener('click', this._windowClickHandler);
             this._windowClickHandler = null;
         }
     }
 
+    // Catch unexpected errors so they don't break the entire record page.
     errorCallback(error, stack) {
         let msg =
             'Unexpected error while rendering these rollup tiles. ' +
@@ -386,7 +410,7 @@ export default class RollupTileGrid extends LightningElement {
         );
     }
 
-    // -------- Layout helpers --------
+    // ------------- Layout helpers -------------
 
     get normalizedRows() {
         return this.normalizeDimension(this.rows, 1, MAX_ROWS);
@@ -412,13 +436,14 @@ export default class RollupTileGrid extends LightningElement {
         return `grid-template-columns: repeat(${cols}, minmax(0, 1fr));`;
     }
 
-    // Size variant mapping
+    // Size / style mapping (Small / Medium / Large with legacy support).
     get normalizedStyleVariant() {
         let variant =
             this.styleVariant && typeof this.styleVariant === 'string'
                 ? this.styleVariant.toLowerCase()
                 : 'small';
 
+        // Map legacy values to new names
         if (variant === 'compact') {
             variant = 'small';
         } else if (variant === 'square') {
@@ -441,12 +466,13 @@ export default class RollupTileGrid extends LightningElement {
         } else if (variant === 'large') {
             base += ' st-rollup-tile_square';
         } else {
+            // "Small" (or anything unknown) -> compact style
             base += ' st-rollup-tile_compact';
         }
         return base;
     }
 
-    // -------- Header helpers --------
+    // ------------- Header helpers -------------
 
     get hasHeader() {
         const text = this.headerText ? this.headerText.trim() : '';
@@ -463,6 +489,7 @@ export default class RollupTileGrid extends LightningElement {
     }
 
     get showRefreshButtonEffective() {
+        // If the admin never touches the property, treat it as true (default).
         return (
             this.showRefreshButton === true ||
             this.showRefreshButton === 'true' ||
@@ -470,6 +497,8 @@ export default class RollupTileGrid extends LightningElement {
             this.showRefreshButton === null
         );
     }
+
+    // ------------- Config error (shared across tiles) -------------
 
     get globalConfigError() {
         const missing = [];
@@ -506,13 +535,16 @@ export default class RollupTileGrid extends LightningElement {
 
         let name = apiName.trim();
 
+        // Remove common suffixes
         name = name.replace(/__c$/i, '').replace(/__x$/i, '');
 
+        // Strip namespace prefix if present (ns__Object)
         const parts = name.split('__');
         if (parts.length > 1) {
             name = parts[1];
         }
 
+        // Convert from PascalCase / camelCase / underscores to nice words
         name = name
             .replace(/_/g, ' ')
             .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -531,7 +563,7 @@ export default class RollupTileGrid extends LightningElement {
         return name || 'record';
     }
 
-    // -------- Tile initialization --------
+    // ------------- Tile initialization -------------
 
     initializeTilesFromConfig() {
         const rows = this.normalizedRows;
@@ -572,6 +604,7 @@ export default class RollupTileGrid extends LightningElement {
             decimalPlaces,
             fieldCategory,
 
+            // runtime state
             aggregateType: initialAggregationType,
             isLoading: false,
             error: null,
@@ -582,6 +615,7 @@ export default class RollupTileGrid extends LightningElement {
             fieldLabel: null,
             isAggregationMenuOpen: false,
 
+            // derived view fields (filled by recomputeTileDerivedFields)
             displayValue: '-',
             hasRecordCount: false,
             summaryRecordLabel: null,
@@ -604,10 +638,12 @@ export default class RollupTileGrid extends LightningElement {
             return canonical;
         }
 
+        // If App Builder somehow stored an unexpected value, be defensive
+        // and fall back to SUM so the SOQL stays valid.
         return 'SUM';
     }
 
-    // -------- Tile view-model helpers --------
+    // ------------- Tile view-model helpers -------------
 
     recomputeTileDerivedFields(tile) {
         const aggregateType =
@@ -615,8 +651,10 @@ export default class RollupTileGrid extends LightningElement {
                 tile.aggregateType || tile.initialAggregationType || 'SUM'
             ) || 'SUM';
 
+        // Numeric aggregate?
         const isNumericAggregate = NUMERIC_TYPES.includes(aggregateType);
 
+        // Decide which "field category" this tile belongs to for dropdown filtering.
         const fieldCategory = resolveFieldCategory(tile);
         const allowedSet = getAllowedAggregationsForCategory(fieldCategory);
 
@@ -655,7 +693,7 @@ export default class RollupTileGrid extends LightningElement {
             displayValue = tile.value;
         }
 
-        // Record count label
+        // hasRecordCount + summaryRecordLabel (now includes object name)
         let hasRecordCount = false;
         let summaryRecordLabel = null;
 
@@ -673,7 +711,7 @@ export default class RollupTileGrid extends LightningElement {
             }
         }
 
-        // Field label used in summary text
+        // fieldLabelForSummary
         let fieldLabelForSummary = '';
         const serverLabel =
             tile.fieldLabel && typeof tile.fieldLabel === 'string'
@@ -695,10 +733,11 @@ export default class RollupTileGrid extends LightningElement {
             }
         }
 
-        // Friendly aggregation label
+        // friendlyAggregationLabel
         let friendlyAggregationLabel;
         switch (aggregateType) {
             case 'AVERAGE':
+            case 'AVG':
                 friendlyAggregationLabel = 'Average';
                 break;
             case 'COUNT':
@@ -713,6 +752,12 @@ export default class RollupTileGrid extends LightningElement {
             case 'MIN':
                 friendlyAggregationLabel = 'Minimum';
                 break;
+            case 'FIRST':
+                friendlyAggregationLabel = 'First value';
+                break;
+            case 'LAST':
+                friendlyAggregationLabel = 'Last value';
+                break;
             case 'CONCATENATE':
                 friendlyAggregationLabel = 'Combined values';
                 break;
@@ -724,16 +769,17 @@ export default class RollupTileGrid extends LightningElement {
                 break;
         }
 
-        // Summary text (tooltip + text under value)
+        // summaryLabel (tooltip + text under value)
         let summaryLabel;
         if (summaryRecordLabel) {
-            // Example: "Distinct count of '# of Poles' across 2 Project records"
-            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' across ${summaryRecordLabel}`;
+            // Example: "Sum of 'Aerial Footage' field across 2 Project records"
+            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' field across ${summaryRecordLabel}`;
         } else {
-            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}'`;
+            // No record count available
+            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' field`;
         }
 
-        // Dropdown options with selected state
+        // aggregationMenuOptions (gear dropdown)
         const aggregationMenuOptions = BASE_AGGREGATION_OPTIONS
             .filter((opt) => !allowedSet || allowedSet.has(opt.value))
             .map((opt) => {
@@ -748,7 +794,7 @@ export default class RollupTileGrid extends LightningElement {
                 };
             });
 
-        // Gear menu CSS class
+        // gearMenuClass
         let gearMenuClass =
             'st-rollup-gear-menu slds-dropdown-trigger slds-dropdown-trigger_click';
         if (tile.isAggregationMenuOpen) {
@@ -768,7 +814,7 @@ export default class RollupTileGrid extends LightningElement {
         };
     }
 
-    // -------- Refresh / loading --------
+    // ------------- Refresh / loading -------------
 
     handleRefreshAllClick() {
         this.refreshAllTiles();
@@ -783,6 +829,7 @@ export default class RollupTileGrid extends LightningElement {
     async loadTile(index) {
         const globalConfigError = this.globalConfigError;
         if (globalConfigError) {
+            // If the shared config is bad, set an error on this tile and bail.
             this.tiles = this.tiles.map((tile) =>
                 tile.index === index
                     ? this.recomputeTileDerivedFields({
@@ -805,12 +852,14 @@ export default class RollupTileGrid extends LightningElement {
             return;
         }
 
+        // Clear any previous timeout for this tile.
         const existingTimeout = this._tileTimeouts[index];
         if (existingTimeout) {
             clearTimeout(existingTimeout);
             delete this._tileTimeouts[index];
         }
 
+        // Reset tile state to "loading"
         this.tiles = this.tiles.map((tile) =>
             tile.index === index
                 ? this.recomputeTileDerivedFields({
@@ -860,6 +909,7 @@ export default class RollupTileGrid extends LightningElement {
             const data = await Promise.race([apexPromise, timeoutPromise]);
 
             if (!data) {
+                // No data returned
                 this.tiles = this.tiles.map((tile) =>
                     tile.index === index
                         ? this.recomputeTileDerivedFields({
@@ -885,6 +935,7 @@ export default class RollupTileGrid extends LightningElement {
             let fieldLabel = null;
 
             if (data.errorMessage) {
+                // Business / configuration error from Apex – show it in the tile.
                 errorMsg = data.errorMessage;
                 value = undefined;
                 recordCount = data.recordCount;
@@ -958,22 +1009,37 @@ export default class RollupTileGrid extends LightningElement {
         }
     }
 
-    // -------- Dropdown / click handling --------
+    // ------------- Dropdown / click handling -------------
 
+    /**
+     * Root click handler for clicks *inside* the component.
+     * If you click anywhere that's not inside a gear menu,
+     * close any open aggregation menus.
+     */
     handleRootClick() {
         this.closeAllAggregationMenus();
     }
 
+    /**
+     * Global window click handler, to close menus when clicking completely
+     * outside the component.
+     */
     handleWindowClick(event) {
         if (!this.template) {
             return;
         }
+
+        // If click is inside this component, let handleRootClick deal with it.
         if (this.template.contains(event.target)) {
             return;
         }
+
         this.closeAllAggregationMenus();
     }
 
+    /**
+     * Close all aggregation menus (used by outside-click + root click).
+     */
     closeAllAggregationMenus() {
         let anyOpen = false;
         const updated = this.tiles.map((tile) => {
@@ -993,7 +1059,7 @@ export default class RollupTileGrid extends LightningElement {
         }
     }
 
-    // -------- UI handlers --------
+    // ------------- UI handlers for per-tile controls -------------
 
     handleGearClick(event) {
         event.stopPropagation();
@@ -1004,6 +1070,7 @@ export default class RollupTileGrid extends LightningElement {
 
         this.tiles = this.tiles.map((tile) => {
             if (tile.index === index) {
+                // Toggle this tile's menu.
                 const next = {
                     ...tile,
                     isAggregationMenuOpen: !tile.isAggregationMenuOpen
@@ -1011,6 +1078,7 @@ export default class RollupTileGrid extends LightningElement {
                 return this.recomputeTileDerivedFields(next);
             }
 
+            // Close all other menus when opening a new one.
             if (tile.isAggregationMenuOpen) {
                 const next = {
                     ...tile,
@@ -1036,6 +1104,7 @@ export default class RollupTileGrid extends LightningElement {
 
         const newTypeUpper = (newTypeRaw || '').toString().toUpperCase();
         if (!newTypeUpper) {
+            // Just close the menu.
             this.tiles = this.tiles.map((tile) =>
                 tile.index === index
                     ? this.recomputeTileDerivedFields({
@@ -1061,6 +1130,7 @@ export default class RollupTileGrid extends LightningElement {
             return next;
         });
 
+        // After updating the aggregation type, reload the tile.
         this.loadTile(index);
     }
 }
