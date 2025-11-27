@@ -1,17 +1,16 @@
 public with sharing class RollupService {
 
     public class RollupResult {
-        @AuraEnabled public String value;
+        @AuraEnabled public String  value;
         @AuraEnabled public Integer recordCount;
-        @AuraEnabled public String errorMessage;
+        @AuraEnabled public String  errorMessage;
         // Formatting hints for the client
         @AuraEnabled public Boolean isCurrency;
         @AuraEnabled public Boolean isPercent;
         // Front-end label for the aggregate field (not the API name)
-        @AuraEnabled public String fieldLabel;
+        @AuraEnabled public String  fieldLabel;
     }
 
-    // NOTE: No cacheable=true here so every refresh hits the DB.
     @AuraEnabled
     public static RollupResult getRollup(
         Id parentId,
@@ -34,10 +33,7 @@ public with sharing class RollupService {
         String originalRelationshipField = relationshipFieldApiName;
         String originalAggregateField    = aggregateFieldApiName;
 
-        // Normalise values coming from picklists:
-        // - "Project (sitetracker__Project__c)"          -> "sitetracker__Project__c"
-        // - "Project -> Program (Proj__c.Program__c)"    -> "Program__c"
-        // - "Project__c.Amount__c"                       -> "Amount__c"
+        // Normalise values coming from picklists
         childObjectApiName       = normalizeApiName(childObjectApiName);
         relationshipFieldApiName = normalizeApiName(relationshipFieldApiName);
         aggregateFieldApiName    = normalizeApiName(aggregateFieldApiName);
@@ -49,6 +45,17 @@ public with sharing class RollupService {
         if (String.isBlank(relationshipFieldApiName)) {
             result.errorMessage = 'Configuration error: relationship field is blank.';
             return result;
+        }
+
+        // Normalise aggregation type
+        String aggType;
+        if (String.isBlank(aggregateType)) {
+            aggType = 'SUM';
+        } else {
+            aggType = aggregateType.trim().toUpperCase();
+        }
+        if (aggType == 'AVG') {
+            aggType = 'AVERAGE';
         }
 
         try {
@@ -80,16 +87,7 @@ public with sharing class RollupService {
             }
 
             // ----- AGGREGATE FIELD CHECK -----
-            if (String.isBlank(aggregateType)) {
-                aggregateType = 'SUM';
-            } else {
-                aggregateType = aggregateType.trim().toUpperCase();
-            }
-
-            // Only COUNT can safely omit an aggregate field; everything else needs one.
-            Boolean requiresAggregateField = (aggregateType != 'COUNT');
-
-            // Still validate the field if the admin supplied one even for COUNT.
+            Boolean requiresAggregateField = (aggType != 'COUNT');
             Boolean shouldValidateAggregateField =
                 requiresAggregateField || !String.isBlank(aggregateFieldApiName);
 
@@ -97,7 +95,7 @@ public with sharing class RollupService {
                 if (String.isBlank(aggregateFieldApiName)) {
                     result.errorMessage =
                         'Configuration error: aggregate field is required for aggregation type ' +
-                        aggregateType + '.';
+                        aggType + '.';
                     return result;
                 }
                 if (!childFields.containsKey(aggregateFieldApiName)) {
@@ -134,7 +132,7 @@ public with sharing class RollupService {
             // =========================
             // COUNT
             // =========================
-            if (aggregateType == 'COUNT') {
+            if (aggType == 'COUNT') {
                 String countSoql =
                     'SELECT COUNT() total ' +
                     'FROM ' + childObjectApiName +
@@ -149,33 +147,33 @@ public with sharing class RollupService {
             // =========================
             // COUNT DISTINCT
             // =========================
-            if (aggregateType == 'COUNT_DISTINCT') {
-                // At this point aggregateFieldApiName has been validated.
+            if (aggType == 'COUNT_DISTINCT') {
                 String soql =
                     'SELECT COUNT_DISTINCT(' + aggregateFieldApiName + ') aggValue,' +
                     '       COUNT(Id) recordCount ' +
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
 
-                AggregateResult ar = (AggregateResult)Database.query(soql);
-                Object distinctCount = ar.get('aggValue');
-                Object total = ar.get('recordCount');
+                List<AggregateResult> ars = Database.query(soql);
+                if (!ars.isEmpty()) {
+                    AggregateResult ar = ars[0];
 
-                result.value =
-                    (distinctCount == null) ? null : String.valueOf(distinctCount);
-                result.recordCount =
-                    (total == null) ? null : Integer.valueOf(String.valueOf(total));
+                    Object distinctCount = ar.get('aggValue');
+                    Object total = ar.get('recordCount');
+
+                    result.value =
+                        (distinctCount == null) ? null : String.valueOf(distinctCount);
+                    result.recordCount =
+                        (total == null) ? null : Integer.valueOf(String.valueOf(total));
+                }
                 return result;
             }
 
             // =========================
             // CONCATENATE / CONCATENATE_DISTINCT
             // =========================
-            if (aggregateType == 'CONCATENATE' ||
-                aggregateType == 'CONCATENATE_DISTINCT') {
+            if (aggType == 'CONCATENATE' || aggType == 'CONCATENATE_DISTINCT') {
 
-                // No aliasing here to avoid "only aggregate expressions use field aliasing"
-                // errors if admins include GROUP BY fragments in filters.
                 String soql =
                     'SELECT ' + aggregateFieldApiName +
                     ' FROM ' + childObjectApiName +
@@ -193,7 +191,7 @@ public with sharing class RollupService {
                     String strVal = String.valueOf(raw).trim();
                     if (strVal == '') continue;
 
-                    if (aggregateType == 'CONCATENATE_DISTINCT') {
+                    if (aggType == 'CONCATENATE_DISTINCT') {
                         if (!seen.contains(strVal)) {
                             seen.add(strVal);
                             values.add(strVal);
@@ -213,17 +211,15 @@ public with sharing class RollupService {
             // =========================
             // FIRST / LAST
             // =========================
-            if (aggregateType == 'FIRST' || aggregateType == 'LAST') {
-                String direction = (aggregateType == 'FIRST') ? 'ASC' : 'DESC';
+            if (aggType == 'FIRST' || aggType == 'LAST') {
+                String direction = (aggType == 'FIRST') ? 'ASC' : 'DESC';
 
-                // Again, avoid aliasing here so the query works even with GROUP BY clauses
-                // in admin-supplied filters.
                 String soql =
                     'SELECT ' + aggregateFieldApiName +
                     ' FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause +
                     ' ORDER BY ' + aggregateFieldApiName + ' ' + direction +
-                    ' NULLS ' + ((aggregateType == 'FIRST') ? 'LAST' : 'FIRST') +
+                    ' NULLS ' + ((aggType == 'FIRST') ? 'LAST' : 'FIRST') +
                     ' LIMIT 1';
 
                 List<SObject> rows = Database.query(soql);
@@ -236,12 +232,84 @@ public with sharing class RollupService {
                     'SELECT COUNT() total ' +
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
+
                 result.recordCount = Database.countQuery(countSoql);
                 return result;
             }
 
             // =========================
-            // SUM / AVG / MIN / MAX
+            // SUM / AVERAGE / MIN / MAX
             // =========================
             String aggFunction;
-            if (aggregateType == 'AVERAGE' || aggregateType ==
+            if (aggType == 'AVERAGE') {
+                aggFunction = 'AVG';
+            } else if (aggType == 'MAX') {
+                aggFunction = 'MAX';
+            } else if (aggType == 'MIN') {
+                aggFunction = 'MIN';
+            } else {
+                aggFunction = 'SUM';
+            }
+
+            String soql =
+                'SELECT ' + aggFunction + '(' + aggregateFieldApiName + ') aggValue,' +
+                '       COUNT(Id) recordCount ' +
+                'FROM ' + childObjectApiName +
+                ' WHERE ' + whereClause;
+
+            List<AggregateResult> ars = Database.query(soql);
+            if (!ars.isEmpty()) {
+                AggregateResult ar = ars[0];
+
+                Object rawValue = ar.get('aggValue');
+                Object total = ar.get('recordCount');
+
+                result.value =
+                    (rawValue == null) ? null : String.valueOf(rawValue);
+                result.recordCount =
+                    (total == null) ? null : Integer.valueOf(String.valueOf(total));
+            }
+
+        } catch (Exception ex) {
+            System.debug('RollupService.getRollup error: ' + ex);
+            result.errorMessage =
+                'Unexpected error while calculating rollup: ' + ex.getMessage();
+        }
+
+        return result;
+    }
+
+    /**
+     * Normalises values coming from picklists that return things like:
+     *  - "Project (sitetracker__Project__c)"
+     *  - "Child • Parent Lookup (Child__c.Parent__c)"
+     *  - "sitetracker__Project__c.Amount__c"
+     *
+     * After normalisation we want just the field/object API name piece:
+     *  - "sitetracker__Project__c"
+     *  - "Parent__c"
+     *  - "Amount__c"
+     */
+    private static String normalizeApiName(String raw) {
+        if (String.isBlank(raw)) {
+            return null;
+        }
+
+        String trimmed = raw.trim();
+
+        // If there is a "(...)" suffix, keep only the content inside.
+        Integer open = trimmed.lastIndexOf('(');
+        Integer close = trimmed.lastIndexOf(')');
+        if (open != -1 && close != -1 && close > open) {
+            trimmed = trimmed.substring(open + 1, close).trim();
+        }
+
+        // If we now have something like "Object__c.Field__c", keep only the field part.
+        Integer dot = trimmed.lastIndexOf('.');
+        if (dot != -1 && dot < trimmed.length() - 1) {
+            trimmed = trimmed.substring(dot + 1).trim();
+        }
+
+        return trimmed;
+    }
+}
