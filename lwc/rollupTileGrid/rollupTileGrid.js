@@ -30,6 +30,41 @@ const NUMERIC_TYPES = [
     'COUNT_DISTINCT'
 ];
 
+// Aggregations that imply a numeric field (for filtering by field type).
+const NUMERIC_FIELD_AGG_TYPES = ['SUM', 'AVERAGE', 'MAX', 'MIN'];
+
+// Aggregations that imply a text-like field (for filtering by field type).
+const TEXT_FIELD_AGG_TYPES = ['CONCATENATE', 'CONCATENATE_DISTINCT'];
+
+// Simple "field category" buckets used for deciding which aggregation
+// types to show in the dropdown for a tile.
+const FIELD_CATEGORY = {
+    NUMERIC: 'numeric',
+    TEXT: 'text',
+    UNKNOWN: 'unknown'
+};
+
+// Allowed aggregation sets per field category.
+const NUMERIC_FIELD_ALLOWED_AGG_TYPES = new Set([
+    'SUM',
+    'AVERAGE',
+    'MAX',
+    'MIN',
+    'COUNT',
+    'COUNT_DISTINCT',
+    'FIRST',
+    'LAST'
+]);
+
+const TEXT_FIELD_ALLOWED_AGG_TYPES = new Set([
+    'CONCATENATE',
+    'CONCATENATE_DISTINCT',
+    'COUNT',
+    'COUNT_DISTINCT',
+    'FIRST',
+    'LAST'
+]);
+
 // Soft timeout so we never spin forever on a bad call.
 const LOAD_TIMEOUT_MS = 15000;
 
@@ -46,6 +81,72 @@ const BASE_AGGREGATION_OPTIONS = [
     { label: 'Min', value: 'MIN' },
     { label: 'Sum', value: 'SUM' }
 ];
+
+/**
+ * Normalize an aggregation type value into the canonical form used by
+ * this component and RollupService (e.g., "avg" -> "AVERAGE").
+ */
+function normalizeAggTypeValue(raw) {
+    if (raw === null || raw === undefined) {
+        return null;
+    }
+    const upper = raw.toString().trim().toUpperCase();
+    if (!upper) {
+        return null;
+    }
+    return upper === 'AVG' ? 'AVERAGE' : upper;
+}
+
+/**
+ * Infer a broad field category from an aggregation type. This is a heuristic
+ * used when we don't have explicit field metadata.
+ */
+function inferFieldCategoryFromAggregationType(rawAggType) {
+    const canonical = normalizeAggTypeValue(rawAggType);
+    if (!canonical) {
+        return FIELD_CATEGORY.UNKNOWN;
+    }
+    if (NUMERIC_FIELD_AGG_TYPES.includes(canonical)) {
+        return FIELD_CATEGORY.NUMERIC;
+    }
+    if (TEXT_FIELD_AGG_TYPES.includes(canonical)) {
+        return FIELD_CATEGORY.TEXT;
+    }
+    return FIELD_CATEGORY.UNKNOWN;
+}
+
+/**
+ * Finalize the field category for a tile, taking into account any runtime
+ * hints coming back from Apex (currency / percent flags).
+ */
+function resolveFieldCategory(tile) {
+    let category =
+        tile && tile.fieldCategory
+            ? tile.fieldCategory
+            : FIELD_CATEGORY.UNKNOWN;
+
+    // If Apex tells us this is currency/percent, treat as numeric regardless
+    // of what was inferred from the initial aggregation type.
+    if (tile && (tile.isCurrency || tile.isPercent)) {
+        category = FIELD_CATEGORY.NUMERIC;
+    }
+
+    return category;
+}
+
+/**
+ * Return the set of allowed aggregation types for a given field category.
+ * If we return null, it means "no filtering" – show all aggregation options.
+ */
+function getAllowedAggregationsForCategory(category) {
+    if (category === FIELD_CATEGORY.NUMERIC) {
+        return NUMERIC_FIELD_ALLOWED_AGG_TYPES;
+    }
+    if (category === FIELD_CATEGORY.TEXT) {
+        return TEXT_FIELD_ALLOWED_AGG_TYPES;
+    }
+    return null;
+}
 
 export default class RollupTileGrid extends LightningElement {
     @api recordId;
@@ -487,6 +588,7 @@ export default class RollupTileGrid extends LightningElement {
         const perTileDecimal = this[`tile${suffix}DecimalPlaces`];
 
         const initialAggregationType = this.normalizeAggregationType(rawAggregationType);
+        const fieldCategory = inferFieldCategoryFromAggregationType(initialAggregationType);
 
         const decimalPlaces =
             perTileDecimal !== null && perTileDecimal !== undefined
@@ -500,6 +602,7 @@ export default class RollupTileGrid extends LightningElement {
             initialAggregationType,
             filterCondition,
             decimalPlaces,
+            fieldCategory,
 
             // runtime state
             aggregateType: initialAggregationType,
@@ -525,17 +628,11 @@ export default class RollupTileGrid extends LightningElement {
     }
 
     normalizeAggregationType(raw) {
-        if (raw === null || raw === undefined) {
+        const canonical = normalizeAggTypeValue(raw);
+
+        if (!canonical) {
             return 'SUM';
         }
-
-        const upper = raw.toString().trim().toUpperCase();
-        if (!upper) {
-            return 'SUM';
-        }
-
-        // Map common aliases
-        const canonical = upper === 'AVG' ? 'AVERAGE' : upper;
 
         if (VALID_AGGREGATION_TYPES.includes(canonical)) {
             return canonical;
@@ -549,12 +646,17 @@ export default class RollupTileGrid extends LightningElement {
     // ------------- Tile view-model helpers -------------
 
     recomputeTileDerivedFields(tile) {
-        const aggregateType = (tile.aggregateType || tile.initialAggregationType || 'SUM')
-            .toString()
-            .toUpperCase();
+        const aggregateType =
+            normalizeAggTypeValue(
+                tile.aggregateType || tile.initialAggregationType || 'SUM'
+            ) || 'SUM';
 
         // Numeric aggregate?
         const isNumericAggregate = NUMERIC_TYPES.includes(aggregateType);
+
+        // Decide which "field category" this tile belongs to for dropdown filtering.
+        const fieldCategory = resolveFieldCategory(tile);
+        const allowedSet = getAllowedAggregationsForCategory(fieldCategory);
 
         // displayValue
         let displayValue;
@@ -678,17 +780,19 @@ export default class RollupTileGrid extends LightningElement {
         }
 
         // aggregationMenuOptions (gear dropdown)
-        const aggregationMenuOptions = BASE_AGGREGATION_OPTIONS.map((opt) => {
-            const isSelected = opt.value === aggregateType;
-            return {
-                label: opt.label,
-                value: opt.value,
-                isSelected,
-                itemClass:
-                    'slds-dropdown__item' + (isSelected ? ' slds-is-selected' : ''),
-                ariaChecked: isSelected ? 'true' : 'false'
-            };
-        });
+        const aggregationMenuOptions = BASE_AGGREGATION_OPTIONS
+            .filter((opt) => !allowedSet || allowedSet.has(opt.value))
+            .map((opt) => {
+                const isSelected = opt.value === aggregateType;
+                return {
+                    label: opt.label,
+                    value: opt.value,
+                    isSelected,
+                    itemClass:
+                        'slds-dropdown__item' + (isSelected ? ' slds-is-selected' : ''),
+                    ariaChecked: isSelected ? 'true' : 'false'
+                };
+            });
 
         // gearMenuClass
         let gearMenuClass =
@@ -700,6 +804,7 @@ export default class RollupTileGrid extends LightningElement {
         return {
             ...tile,
             aggregateType,
+            fieldCategory,
             displayValue,
             hasRecordCount,
             summaryRecordLabel,
