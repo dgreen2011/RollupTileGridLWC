@@ -1,18 +1,16 @@
 public with sharing class RollupService {
 
-    public class RollupResult {
-        @AuraEnabled public String  value;
+    public class RollupResponse {
+        @AuraEnabled public Object  value;
         @AuraEnabled public Integer recordCount;
-        @AuraEnabled public String  errorMessage;
-        // Formatting hints for the client
         @AuraEnabled public Boolean isCurrency;
         @AuraEnabled public Boolean isPercent;
-        // Front-end label for the aggregate field (not the API name)
         @AuraEnabled public String  fieldLabel;
+        @AuraEnabled public String  errorMessage;
     }
 
-    @AuraEnabled
-    public static RollupResult getRollup(
+    @AuraEnabled(cacheable=true)
+    public static RollupResponse getRollup(
         Id parentId,
         String childObjectApiName,
         String relationshipFieldApiName,
@@ -20,296 +18,196 @@ public with sharing class RollupService {
         String aggregateType,
         String filterCondition
     ) {
-        RollupResult result = new RollupResult();
-
-        // Basic guard rails
-        if (parentId == null) {
-            result.errorMessage = 'Configuration error: parentId was not supplied.';
-            return result;
-        }
-
-        // Keep originals for nicer error messages
-        String originalChildObject       = childObjectApiName;
-        String originalRelationshipField = relationshipFieldApiName;
-        String originalAggregateField    = aggregateFieldApiName;
-
-        // Normalise values coming from picklists
-        childObjectApiName       = normalizeApiName(childObjectApiName);
-        relationshipFieldApiName = normalizeApiName(relationshipFieldApiName);
-        aggregateFieldApiName    = normalizeApiName(aggregateFieldApiName);
-
-        if (String.isBlank(childObjectApiName)) {
-            result.errorMessage = 'Configuration error: child object is blank.';
-            return result;
-        }
-        if (String.isBlank(relationshipFieldApiName)) {
-            result.errorMessage = 'Configuration error: relationship field is blank.';
-            return result;
-        }
-
-        // Normalise aggregation type
-        String aggType;
-        if (String.isBlank(aggregateType)) {
-            aggType = 'SUM';
-        } else {
-            aggType = aggregateType.trim().toUpperCase();
-        }
-        if (aggType == 'AVG') {
-            aggType = 'AVERAGE';
-        }
+        RollupResponse res = new RollupResponse();
 
         try {
-            Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
-
-            // ----- CHILD OBJECT CHECK -----
-            if (!globalDescribe.containsKey(childObjectApiName)) {
-                String labelForMessage = String.isBlank(originalChildObject)
-                    ? childObjectApiName
-                    : originalChildObject;
-                result.errorMessage =
-                    'Configuration error: child object "' + labelForMessage + '" was not found.';
-                return result;
+            // Basic validation
+            if (parentId == null) {
+                res.errorMessage = 'Parent Id is required.';
+                return res;
+            }
+            if (String.isBlank(childObjectApiName)) {
+                res.errorMessage = 'Child object API name is required.';
+                return res;
+            }
+            if (String.isBlank(relationshipFieldApiName)) {
+                res.errorMessage = 'Relationship field API name is required.';
+                return res;
             }
 
-            Schema.SObjectType childType = globalDescribe.get(childObjectApiName);
+            String normalizedAgg = normalizeAggregateType(aggregateType);
+
+            // Describe child object
+            Schema.SObjectType childType = Schema.getGlobalDescribe().get(childObjectApiName);
+            if (childType == null) {
+                res.errorMessage = 'Unknown child object: ' + childObjectApiName;
+                return res;
+            }
+
             Schema.DescribeSObjectResult childDescribe = childType.getDescribe();
-            Map<String, Schema.SObjectField> childFields = childDescribe.fields.getMap();
+            Map<String, Schema.SObjectField> fieldMap = childDescribe.fields.getMap();
 
-            // ----- RELATIONSHIP FIELD CHECK -----
-            if (!childFields.containsKey(relationshipFieldApiName)) {
-                String labelForMessage = String.isBlank(originalRelationshipField)
-                    ? relationshipFieldApiName
-                    : originalRelationshipField;
-                result.errorMessage =
-                    'Configuration error: relationship field "' + labelForMessage +
-                    '" was not found on ' + childObjectApiName + '.';
-                return result;
+            Schema.DescribeFieldResult fieldDescribe;
+            if (!String.isBlank(aggregateFieldApiName)) {
+                if (!fieldMap.containsKey(aggregateFieldApiName)) {
+                    res.errorMessage = 'Unknown aggregate field: ' + aggregateFieldApiName;
+                    return res;
+                }
+                fieldDescribe = fieldMap.get(aggregateFieldApiName).getDescribe();
+                res.fieldLabel = fieldDescribe.getLabel();
             }
 
-            // ----- AGGREGATE FIELD CHECK -----
-            Boolean requiresAggregateField = (aggType != 'COUNT');
-            Boolean shouldValidateAggregateField =
-                requiresAggregateField || !String.isBlank(aggregateFieldApiName);
+            // Currency / percent flags (only for numeric-type aggregations)
+            if (fieldDescribe != null &&
+                normalizedAgg != 'COUNT' &&
+                normalizedAgg != 'COUNT_DISTINCT' &&
+                normalizedAgg != 'CONCATENATE' &&
+                normalizedAgg != 'CONCATENATE_DISTINCT') {
 
-            if (shouldValidateAggregateField) {
-                if (String.isBlank(aggregateFieldApiName)) {
-                    result.errorMessage =
-                        'Configuration error: aggregate field is required for aggregation type ' +
-                        aggType + '.';
-                    return result;
-                }
-                if (!childFields.containsKey(aggregateFieldApiName)) {
-                    String labelForMessage = String.isBlank(originalAggregateField)
-                        ? aggregateFieldApiName
-                        : originalAggregateField;
-                    result.errorMessage =
-                        'Configuration error: aggregate field "' + labelForMessage +
-                        '" was not found on ' + childObjectApiName + '.';
-                    return result;
-                }
-
-                // Capture basic type information so the client can format values nicely.
-                try {
-                    Schema.DescribeFieldResult aggFieldDescribe =
-                        childFields.get(aggregateFieldApiName).getDescribe();
-                    if (aggFieldDescribe != null) {
-                        Schema.DisplayType t = aggFieldDescribe.getType();
-                        result.isCurrency = (t == Schema.DisplayType.Currency);
-                        result.isPercent  = (t == Schema.DisplayType.Percent);
-                        result.fieldLabel = aggFieldDescribe.getLabel();
-                    }
-                } catch (Exception ignoreTypeEx) {
-                    // Never let describe/formatting hints break the rollup itself.
+                Schema.DisplayType dt = fieldDescribe.getType();
+                if (dt == Schema.DisplayType.Currency) {
+                    res.isCurrency = true;
+                } else if (dt == Schema.DisplayType.Percent) {
+                    res.isPercent = true;
                 }
             }
 
-            // ----- WHERE CLAUSE -----
-            String whereClause = relationshipFieldApiName + ' = :parentId';
+            // WHERE clause
+            String whereClause = relationshipFieldApiName + ' = \'' +
+                String.escapeSingleQuotes(String.valueOf(parentId)) + '\'';
+
             if (!String.isBlank(filterCondition)) {
                 whereClause += ' AND (' + filterCondition + ')';
             }
 
-            // =========================
-            // COUNT
-            // =========================
-            if (aggType == 'COUNT') {
-                String countSoql =
-                    'SELECT COUNT() total ' +
-                    'FROM ' + childObjectApiName +
-                    ' WHERE ' + whereClause;
-
-                Integer total = Database.countQuery(countSoql);
-                result.recordCount = total;
-                result.value = (total == null) ? null : String.valueOf(total);
-                return result;
-            }
-
-            // =========================
-            // COUNT DISTINCT
-            // =========================
-            if (aggType == 'COUNT_DISTINCT') {
-                String soql =
-                    'SELECT COUNT_DISTINCT(' + aggregateFieldApiName + ') aggValue,' +
-                    '       COUNT(Id) recordCount ' +
-                    'FROM ' + childObjectApiName +
-                    ' WHERE ' + whereClause;
-
-                List<AggregateResult> ars = Database.query(soql);
-                if (!ars.isEmpty()) {
-                    AggregateResult ar = ars[0];
-
-                    Object distinctCount = ar.get('aggValue');
-                    Object total = ar.get('recordCount');
-
-                    result.value =
-                        (distinctCount == null) ? null : String.valueOf(distinctCount);
-                    result.recordCount =
-                        (total == null) ? null : Integer.valueOf(String.valueOf(total));
+            // CONCATENATE / CONCATENATE_DISTINCT handled separately
+            if (normalizedAgg == 'CONCATENATE' || normalizedAgg == 'CONCATENATE_DISTINCT') {
+                if (String.isBlank(aggregateFieldApiName)) {
+                    res.errorMessage = 'Aggregate field is required for concatenate rollups.';
+                    return res;
                 }
-                return result;
-            }
+                if (fieldDescribe == null) {
+                    res.errorMessage = 'Unable to describe aggregate field: ' + aggregateFieldApiName;
+                    return res;
+                }
 
-            // =========================
-            // CONCATENATE / CONCATENATE_DISTINCT
-            // =========================
-            if (aggType == 'CONCATENATE' || aggType == 'CONCATENATE_DISTINCT') {
+                Schema.DisplayType dt = fieldDescribe.getType();
+                // Only allow text-ish fields for concatenation
+                if (dt != Schema.DisplayType.String &&
+                    dt != Schema.DisplayType.TextArea &&
+                    dt != Schema.DisplayType.Phone &&
+                    dt != Schema.DisplayType.Email &&
+                    dt != Schema.DisplayType.Url &&
+                    dt != Schema.DisplayType.Picklist &&
+                    dt != Schema.DisplayType.MultiPicklist) {
+
+                    res.errorMessage = 'Concatenate rollups are only supported on text-like fields.';
+                    return res;
+                }
 
                 String soql =
                     'SELECT ' + aggregateFieldApiName +
                     ' FROM ' + childObjectApiName +
-                    ' WHERE ' + whereClause +
-                    ' ORDER BY ' + aggregateFieldApiName;
+                    ' WHERE ' + whereClause;
 
                 List<SObject> rows = Database.query(soql);
+                res.recordCount = rows.size();
+
+                Set<String> distinctSet = new Set<String>();
                 List<String> values = new List<String>();
-                Set<String> seen = new Set<String>();
 
                 for (SObject row : rows) {
                     Object raw = row.get(aggregateFieldApiName);
                     if (raw == null) continue;
+                    String val = String.valueOf(raw);
 
-                    String strVal = String.valueOf(raw).trim();
-                    if (strVal == '') continue;
-
-                    if (aggType == 'CONCATENATE_DISTINCT') {
-                        if (!seen.contains(strVal)) {
-                            seen.add(strVal);
-                            values.add(strVal);
+                    if (normalizedAgg == 'CONCATENATE_DISTINCT') {
+                        if (!distinctSet.contains(val)) {
+                            distinctSet.add(val);
+                            values.add(val);
                         }
                     } else {
-                        values.add(strVal);
+                        values.add(val);
                     }
                 }
 
-                result.recordCount = rows.size();
-                result.value = values.isEmpty()
-                    ? null
-                    : String.join(values, '; ');
-                return result;
+                // Join with a simple delimiter; adjust if you want commas instead.
+                res.value = String.join(values, '; ');
+                return res;
             }
 
-            // =========================
-            // FIRST / LAST
-            // =========================
-            if (aggType == 'FIRST' || aggType == 'LAST') {
-                String direction = (aggType == 'FIRST') ? 'ASC' : 'DESC';
-
-                String soql =
-                    'SELECT ' + aggregateFieldApiName +
-                    ' FROM ' + childObjectApiName +
-                    ' WHERE ' + whereClause +
-                    ' ORDER BY ' + aggregateFieldApiName + ' ' + direction +
-                    ' NULLS ' + ((aggType == 'FIRST') ? 'LAST' : 'FIRST') +
-                    ' LIMIT 1';
-
-                List<SObject> rows = Database.query(soql);
-                if (!rows.isEmpty()) {
-                    Object raw = rows[0].get(aggregateFieldApiName);
-                    result.value = (raw == null) ? null : String.valueOf(raw);
-                }
-
-                String countSoql =
-                    'SELECT COUNT() total ' +
-                    'FROM ' + childObjectApiName +
-                    ' WHERE ' + whereClause;
-
-                result.recordCount = Database.countQuery(countSoql);
-                return result;
+            // Numeric / counting aggregations (SUM, AVERAGE, MAX, MIN, COUNT, COUNT_DISTINCT)
+            String fieldForFunction = aggregateFieldApiName;
+            if (String.isBlank(fieldForFunction)) {
+                // For COUNT / COUNT_DISTINCT with no field, just use Id
+                fieldForFunction = 'Id';
             }
 
-            // =========================
-            // SUM / AVERAGE / MIN / MAX
-            // =========================
-            String aggFunction;
-            if (aggType == 'AVERAGE') {
-                aggFunction = 'AVG';
-            } else if (aggType == 'MAX') {
-                aggFunction = 'MAX';
-            } else if (aggType == 'MIN') {
-                aggFunction = 'MIN';
+            String functionName;
+            if (normalizedAgg == 'AVERAGE') {
+                functionName = 'AVG';
+            } else if (normalizedAgg == 'COUNT_DISTINCT') {
+                functionName = 'COUNT_DISTINCT';
             } else {
-                aggFunction = 'SUM';
+                // SUM, MAX, MIN, COUNT
+                functionName = normalizedAgg;
             }
 
             String soql =
-                'SELECT ' + aggFunction + '(' + aggregateFieldApiName + ') aggValue,' +
-                '       COUNT(Id) recordCount ' +
+                'SELECT ' + functionName + '(' + fieldForFunction + ') totalValue, ' +
+                'COUNT(Id) totalRecords ' +
                 'FROM ' + childObjectApiName +
                 ' WHERE ' + whereClause;
 
-            List<AggregateResult> ars = Database.query(soql);
-            if (!ars.isEmpty()) {
-                AggregateResult ar = ars[0];
+            List<AggregateResult> aggResults = Database.query(soql);
 
-                Object rawValue = ar.get('aggValue');
-                Object total = ar.get('recordCount');
+            if (!aggResults.isEmpty()) {
+                AggregateResult ar = aggResults[0];
+                res.value = ar.get('totalValue');
 
-                result.value =
-                    (rawValue == null) ? null : String.valueOf(rawValue);
-                result.recordCount =
-                    (total == null) ? null : Integer.valueOf(String.valueOf(total));
+                Object rc = ar.get('totalRecords');
+                if (rc != null) {
+                    res.recordCount = Integer.valueOf(String.valueOf(rc));
+                }
+            } else {
+                res.value = null;
+                res.recordCount = 0;
             }
 
-        } catch (Exception ex) {
-            System.debug('RollupService.getRollup error: ' + ex);
-            result.errorMessage =
-                'Unexpected error while calculating rollup: ' + ex.getMessage();
-        }
+            return res;
 
-        return result;
+        } catch (Exception e) {
+            // Surface the real error back to the tile so you can see the full message.
+            res.errorMessage = 'Unexpected error while calculating rollup: ' + e.getMessage();
+            return res;
+        }
     }
 
-    /**
-     * Normalises values coming from picklists that return things like:
-     *  - "Project (sitetracker__Project__c)"
-     *  - "Child • Parent Lookup (Child__c.Parent__c)"
-     *  - "sitetracker__Project__c.Amount__c"
-     *
-     * After normalisation we want just the field/object API name piece:
-     *  - "sitetracker__Project__c"
-     *  - "Parent__c"
-     *  - "Amount__c"
-     */
-    private static String normalizeApiName(String raw) {
+    private static String normalizeAggregateType(String raw) {
         if (String.isBlank(raw)) {
-            return null;
+            return 'SUM';
         }
 
-        String trimmed = raw.trim();
-
-        // If there is a "(...)" suffix, keep only the content inside.
-        Integer open = trimmed.lastIndexOf('(');
-        Integer close = trimmed.lastIndexOf(')');
-        if (open != -1 && close != -1 && close > open) {
-            trimmed = trimmed.substring(open + 1, close).trim();
+        String v = raw.trim().toUpperCase();
+        if (v == 'AVG') {
+            v = 'AVERAGE';
         }
 
-        // If we now have something like "Object__c.Field__c", keep only the field part.
-        Integer dot = trimmed.lastIndexOf('.');
-        if (dot != -1 && dot < trimmed.length() - 1) {
-            trimmed = trimmed.substring(dot + 1).trim();
-        }
+        // Allowed values
+        Set<String> allowed = new Set<String>{
+            'SUM',
+            'AVERAGE',
+            'MAX',
+            'MIN',
+            'COUNT',
+            'COUNT_DISTINCT',
+            'CONCATENATE',
+            'CONCATENATE_DISTINCT'
+        };
 
-        return trimmed;
+        if (!allowed.contains(v)) {
+            return 'SUM';
+        }
+        return v;
     }
 }
