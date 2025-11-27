@@ -110,7 +110,7 @@
                 type="String"
                 label="Tile 1 Aggregation Type"
                 description="Aggregation to perform by default for tile 1."
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -138,7 +138,7 @@
                 name="tile2InitialAggregationType"
                 type="String"
                 label="Tile 2 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -164,7 +164,7 @@
                 name="tile3InitialAggregationType"
                 type="String"
                 label="Tile 3 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -190,7 +190,7 @@
                 name="tile4InitialAggregationType"
                 type="String"
                 label="Tile 4 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -216,7 +216,7 @@
                 name="tile5InitialAggregationType"
                 type="String"
                 label="Tile 5 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -242,7 +242,7 @@
                 name="tile6InitialAggregationType"
                 type="String"
                 label="Tile 6 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -268,7 +268,7 @@
                 name="tile7InitialAggregationType"
                 type="String"
                 label="Tile 7 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -294,7 +294,7 @@
                 name="tile8InitialAggregationType"
                 type="String"
                 label="Tile 8 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -320,7 +320,7 @@
                 name="tile9InitialAggregationType"
                 type="String"
                 label="Tile 9 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -346,7 +346,7 @@
                 name="tile10InitialAggregationType"
                 type="String"
                 label="Tile 10 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -372,7 +372,7 @@
                 name="tile11InitialAggregationType"
                 type="String"
                 label="Tile 11 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -398,7 +398,7 @@
                 name="tile12InitialAggregationType"
                 type="String"
                 label="Tile 12 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -424,7 +424,7 @@
                 name="tile13InitialAggregationType"
                 type="String"
                 label="Tile 13 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -450,7 +450,7 @@
                 name="tile14InitialAggregationType"
                 type="String"
                 label="Tile 14 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -476,7 +476,7 @@
                 name="tile15InitialAggregationType"
                 type="String"
                 label="Tile 15 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -502,7 +502,7 @@
                 name="tile16InitialAggregationType"
                 type="String"
                 label="Tile 16 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -528,7 +528,7 @@
                 name="tile17InitialAggregationType"
                 type="String"
                 label="Tile 17 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -554,7 +554,7 @@
                 name="tile18InitialAggregationType"
                 type="String"
                 label="Tile 18 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -580,7 +580,7 @@
                 name="tile19InitialAggregationType"
                 type="String"
                 label="Tile 19 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -606,7 +606,7 @@
                 name="tile20InitialAggregationType"
                 type="String"
                 label="Tile 20 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -632,7 +632,7 @@
                 name="tile21InitialAggregationType"
                 type="String"
                 label="Tile 21 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -658,7 +658,7 @@
                 name="tile22InitialAggregationType"
                 type="String"
                 label="Tile 22 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -684,7 +684,7 @@
                 name="tile23InitialAggregationType"
                 type="String"
                 label="Tile 23 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -710,7 +710,7 @@
                 name="tile24InitialAggregationType"
                 type="String"
                 label="Tile 24 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
@@ -736,7 +736,7 @@
                 name="tile25InitialAggregationType"
                 type="String"
                 label="Tile 25 Aggregation Type"
-                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT,FIRST,LAST"
+                datasource="SUM,AVERAGE,MAX,MIN,COUNT,COUNT_DISTINCT,CONCATENATE,CONCATENATE_DISTINCT"
                 default="SUM"
             />
             <property
