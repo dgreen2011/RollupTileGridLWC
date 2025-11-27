@@ -147,7 +147,7 @@
     font-size: 0.8rem;
 }
 
-/* Summary (e.g., "2 records SUM") */
+/* Summary (tooltip text under value) */
 .st-rollup-tile__summary {
     margin-top: 0.15rem;
     color: #706e6b; /* SLDS subtle text */
