@@ -1,0 +1,910 @@
+import { LightningElement, api } from 'lwc';
+import getRollup from '@salesforce/apex/RollupService.getRollup';
+import LOCALE from '@salesforce/i18n/locale';
+
+const MAX_ROWS = 5;
+const MAX_COLUMNS = 5;
+const MAX_TILES = MAX_ROWS * MAX_COLUMNS;
+
+// Canonical aggregation types this component + RollupService understand.
+const VALID_AGGREGATION_TYPES = [
+    'SUM',
+    'AVERAGE',
+    'MAX',
+    'MIN',
+    'COUNT',
+    'COUNT_DISTINCT',
+    'CONCATENATE',
+    'CONCATENATE_DISTINCT',
+    'FIRST',
+    'LAST'
+];
+
+// Aggregations that produce numeric values (used for number formatting).
+const NUMERIC_TYPES = [
+    'SUM',
+    'AVERAGE',
+    'MAX',
+    'MIN',
+    'COUNT',
+    'COUNT_DISTINCT'
+];
+
+// Soft timeout so we never spin forever on a bad call.
+const LOAD_TIMEOUT_MS = 15000;
+
+// Base aggregation options (shared by all tiles).
+const BASE_AGGREGATION_OPTIONS = [
+    { label: 'Average', value: 'AVERAGE' },
+    { label: 'Concatenate', value: 'CONCATENATE' },
+    { label: 'Concatenate Distinct', value: 'CONCATENATE_DISTINCT' },
+    { label: 'Count', value: 'COUNT' },
+    { label: 'Count Distinct', value: 'COUNT_DISTINCT' },
+    { label: 'First', value: 'FIRST' },
+    { label: 'Last', value: 'LAST' },
+    { label: 'Max', value: 'MAX' },
+    { label: 'Min', value: 'MIN' },
+    { label: 'Sum', value: 'SUM' }
+];
+
+export default class RollupTileGrid extends LightningElement {
+    @api recordId;
+
+    // Layout
+    @api rows = 1;
+    @api columns = 3;
+
+    // Optional header shown above the grid
+    @api headerText;
+    @api headerHelpText;
+
+    // Shared rollup config for all tiles
+    @api childObjectApiName;
+    @api relationshipFieldApiName;
+    @api styleVariant = 'Small';
+    @api allowUserToChangeAggregation = false; // kept for compatibility, but grid always uses the gear menu
+    @api decimalPlaces = 2;
+
+    // Refresh behavior – single Refresh button in header
+    @api showRefreshButton; // default from meta.xml; treated as true if undefined
+
+    // ---- Tile-specific @api properties (1–25) ----
+    @api tile1Label;
+    @api tile1AggregateFieldApiName;
+    @api tile1InitialAggregationType;
+    @api tile1FilterCondition;
+    @api tile1DecimalPlaces;
+
+    @api tile2Label;
+    @api tile2AggregateFieldApiName;
+    @api tile2InitialAggregationType;
+    @api tile2FilterCondition;
+    @api tile2DecimalPlaces;
+
+    @api tile3Label;
+    @api tile3AggregateFieldApiName;
+    @api tile3InitialAggregationType;
+    @api tile3FilterCondition;
+    @api tile3DecimalPlaces;
+
+    @api tile4Label;
+    @api tile4AggregateFieldApiName;
+    @api tile4InitialAggregationType;
+    @api tile4FilterCondition;
+    @api tile4DecimalPlaces;
+
+    @api tile5Label;
+    @api tile5AggregateFieldApiName;
+    @api tile5InitialAggregationType;
+    @api tile5FilterCondition;
+    @api tile5DecimalPlaces;
+
+    @api tile6Label;
+    @api tile6AggregateFieldApiName;
+    @api tile6InitialAggregationType;
+    @api tile6FilterCondition;
+    @api tile6DecimalPlaces;
+
+    @api tile7Label;
+    @api tile7AggregateFieldApiName;
+    @api tile7InitialAggregationType;
+    @api tile7FilterCondition;
+    @api tile7DecimalPlaces;
+
+    @api tile8Label;
+    @api tile8AggregateFieldApiName;
+    @api tile8InitialAggregationType;
+    @api tile8FilterCondition;
+    @api tile8DecimalPlaces;
+
+    @api tile9Label;
+    @api tile9AggregateFieldApiName;
+    @api tile9InitialAggregationType;
+    @api tile9FilterCondition;
+    @api tile9DecimalPlaces;
+
+    @api tile10Label;
+    @api tile10AggregateFieldApiName;
+    @api tile10InitialAggregationType;
+    @api tile10FilterCondition;
+    @api tile10DecimalPlaces;
+
+    @api tile11Label;
+    @api tile11AggregateFieldApiName;
+    @api tile11InitialAggregationType;
+    @api tile11FilterCondition;
+    @api tile11DecimalPlaces;
+
+    @api tile12Label;
+    @api tile12AggregateFieldApiName;
+    @api tile12InitialAggregationType;
+    @api tile12FilterCondition;
+    @api tile12DecimalPlaces;
+
+    @api tile13Label;
+    @api tile13AggregateFieldApiName;
+    @api tile13InitialAggregationType;
+    @api tile13FilterCondition;
+    @api tile13DecimalPlaces;
+
+    @api tile14Label;
+    @api tile14AggregateFieldApiName;
+    @api tile14InitialAggregationType;
+    @api tile14FilterCondition;
+    @api tile14DecimalPlaces;
+
+    @api tile15Label;
+    @api tile15AggregateFieldApiName;
+    @api tile15InitialAggregationType;
+    @api tile15FilterCondition;
+    @api tile15DecimalPlaces;
+
+    @api tile16Label;
+    @api tile16AggregateFieldApiName;
+    @api tile16InitialAggregationType;
+    @api tile16FilterCondition;
+    @api tile16DecimalPlaces;
+
+    @api tile17Label;
+    @api tile17AggregateFieldApiName;
+    @api tile17InitialAggregationType;
+    @api tile17FilterCondition;
+    @api tile17DecimalPlaces;
+
+    @api tile18Label;
+    @api tile18AggregateFieldApiName;
+    @api tile18InitialAggregationType;
+    @api tile18FilterCondition;
+    @api tile18DecimalPlaces;
+
+    @api tile19Label;
+    @api tile19AggregateFieldApiName;
+    @api tile19InitialAggregationType;
+    @api tile19FilterCondition;
+    @api tile19DecimalPlaces;
+
+    @api tile20Label;
+    @api tile20AggregateFieldApiName;
+    @api tile20InitialAggregationType;
+    @api tile20FilterCondition;
+    @api tile20DecimalPlaces;
+
+    @api tile21Label;
+    @api tile21AggregateFieldApiName;
+    @api tile21InitialAggregationType;
+    @api tile21FilterCondition;
+    @api tile21DecimalPlaces;
+
+    @api tile22Label;
+    @api tile22AggregateFieldApiName;
+    @api tile22InitialAggregationType;
+    @api tile22FilterCondition;
+    @api tile22DecimalPlaces;
+
+    @api tile23Label;
+    @api tile23AggregateFieldApiName;
+    @api tile23InitialAggregationType;
+    @api tile23FilterCondition;
+    @api tile23DecimalPlaces;
+
+    @api tile24Label;
+    @api tile24AggregateFieldApiName;
+    @api tile24InitialAggregationType;
+    @api tile24FilterCondition;
+    @api tile24DecimalPlaces;
+
+    @api tile25Label;
+    @api tile25AggregateFieldApiName;
+    @api tile25InitialAggregationType;
+    @api tile25FilterCondition;
+    @api tile25DecimalPlaces;
+
+    // Internal state: array of tile view models (config + runtime state).
+    tiles = [];
+
+    // Track whether we've kicked off the initial load.
+    _initialized = false;
+
+    // Track per-tile timeouts (not reactive).
+    _tileTimeouts = {};
+
+    // ------------- Lifecycle -------------
+
+    connectedCallback() {
+        // Build the tiles from the design-time attributes.
+        this.initializeTilesFromConfig();
+    }
+
+    renderedCallback() {
+        // Only run once, and only after recordId is available.
+        if (this._initialized) {
+            return;
+        }
+        if (!this.recordId) {
+            return;
+        }
+
+        this._initialized = true;
+
+        if (!this.globalConfigError) {
+            this.refreshAllTiles();
+        }
+    }
+
+    disconnectedCallback() {
+        // Clean up any pending timeouts.
+        Object.keys(this._tileTimeouts).forEach((key) => {
+            const id = this._tileTimeouts[key];
+            if (id) {
+                clearTimeout(id);
+            }
+        });
+        this._tileTimeouts = {};
+    }
+
+    // Catch unexpected errors so they don't break the entire record page.
+    errorCallback(error, stack) {
+        let msg =
+            'Unexpected error while rendering these rollup tiles. ' +
+            'Please check the configuration and try again.';
+
+        if (error) {
+            if (error.body && error.body.message) {
+                msg += ' ' + error.body.message;
+            } else if (error.message) {
+                msg += ' ' + error.message;
+            }
+        }
+
+        // eslint-disable-next-line no-console
+        console.error('RollupTileGrid errorCallback', {
+            error,
+            stack,
+            recordId: this.recordId,
+            childObjectApiName: this.childObjectApiName,
+            relationshipFieldApiName: this.relationshipFieldApiName
+        });
+
+        this.tiles = this.tiles.map((tile) =>
+            this.recomputeTileDerivedFields({
+                ...tile,
+                isLoading: false,
+                error: msg
+            })
+        );
+    }
+
+    // ------------- Layout helpers -------------
+
+    get normalizedRows() {
+        return this.normalizeDimension(this.rows, 1, MAX_ROWS);
+    }
+
+    get normalizedColumns() {
+        return this.normalizeDimension(this.columns, 1, MAX_COLUMNS);
+    }
+
+    normalizeDimension(value, min, max) {
+        const num = parseInt(value, 10);
+        if (isNaN(num) || num < min) {
+            return min;
+        }
+        if (num > max) {
+            return max;
+        }
+        return num;
+    }
+
+    get gridStyle() {
+        const cols = this.normalizedColumns;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr));`;
+    }
+
+    // Size / style mapping (Small / Medium / Large with legacy support).
+    get normalizedStyleVariant() {
+        let variant =
+            this.styleVariant && typeof this.styleVariant === 'string'
+                ? this.styleVariant.toLowerCase()
+                : 'small';
+
+        // Map legacy values to new names
+        if (variant === 'compact') {
+            variant = 'small';
+        } else if (variant === 'square') {
+            variant = 'large';
+        }
+
+        if (variant !== 'small' && variant !== 'medium' && variant !== 'large') {
+            variant = 'small';
+        }
+
+        return variant;
+    }
+
+    get tileContainerClass() {
+        let base = 'st-rollup-tile';
+        const variant = this.normalizedStyleVariant;
+
+        if (variant === 'medium') {
+            base += ' st-rollup-tile_large';
+        } else if (variant === 'large') {
+            base += ' st-rollup-tile_square';
+        } else {
+            // "Small" (or anything unknown) -> compact style
+            base += ' st-rollup-tile_compact';
+        }
+        return base;
+    }
+
+    // ------------- Header helpers -------------
+
+    get hasHeader() {
+        const text = this.headerText ? this.headerText.trim() : '';
+        const help = this.headerHelpText ? this.headerHelpText.trim() : '';
+        return !!(text || help);
+    }
+
+    get hasHeaderOrToolbar() {
+        const showRefresh =
+            this.showRefreshButton === undefined || this.showRefreshButton === null
+                ? true
+                : this.showRefreshButton;
+        return this.hasHeader || showRefresh;
+    }
+
+    get showRefreshButtonEffective() {
+        // If the admin never touches the property, treat it as true (default).
+        return (
+            this.showRefreshButton === true ||
+            this.showRefreshButton === 'true' ||
+            this.showRefreshButton === undefined ||
+            this.showRefreshButton === null
+        );
+    }
+
+    // ------------- Config error (shared across tiles) -------------
+
+    get globalConfigError() {
+        const missing = [];
+        if (!this.childObjectApiName) {
+            missing.push('Child Object');
+        }
+        if (!this.relationshipFieldApiName) {
+            missing.push('Relationship Field');
+        }
+        if (!this.recordId) {
+            missing.push('recordId');
+        }
+
+        if (!missing.length) {
+            return null;
+        }
+
+        return (
+            'Rollup tile is not fully configured. Missing: ' +
+            missing.join(', ') +
+            '. Open the Lightning App Builder and fill in these properties.'
+        );
+    }
+
+    // ------------- Tile initialization -------------
+
+    initializeTilesFromConfig() {
+        const rows = this.normalizedRows;
+        const cols = this.normalizedColumns;
+        const maxSlots = Math.min(rows * cols, MAX_TILES);
+        const tiles = [];
+
+        for (let index = 1; index <= maxSlots; index++) {
+            tiles.push(this.buildInitialTileConfig(index));
+        }
+
+        this.tiles = tiles;
+    }
+
+    buildInitialTileConfig(index) {
+        const suffix = index.toString();
+
+        const label = this[`tile${suffix}Label`];
+        const aggregateFieldApiName = this[`tile${suffix}AggregateFieldApiName`];
+        const rawAggregationType = this[`tile${suffix}InitialAggregationType`];
+        const filterCondition = this[`tile${suffix}FilterCondition`];
+        const perTileDecimal = this[`tile${suffix}DecimalPlaces`];
+
+        const initialAggregationType = this.normalizeAggregationType(rawAggregationType);
+
+        const decimalPlaces =
+            perTileDecimal !== null && perTileDecimal !== undefined
+                ? perTileDecimal
+                : this.decimalPlaces;
+
+        const baseTile = {
+            index,
+            label: label || `Tile ${index}`,
+            aggregateFieldApiName,
+            initialAggregationType,
+            filterCondition,
+            decimalPlaces,
+
+            // runtime state
+            aggregateType: initialAggregationType,
+            isLoading: false,
+            error: null,
+            value: null,
+            recordCount: null,
+            isCurrency: false,
+            isPercent: false,
+            fieldLabel: null,
+            isAggregationMenuOpen: false,
+
+            // derived view fields (filled by recomputeTileDerivedFields)
+            displayValue: '-',
+            hasRecordCount: false,
+            summaryRecordLabel: null,
+            summaryLabel: null,
+            aggregationMenuOptions: [],
+            gearMenuClass: ''
+        };
+
+        return this.recomputeTileDerivedFields(baseTile);
+    }
+
+    normalizeAggregationType(raw) {
+        if (raw === null || raw === undefined) {
+            return 'SUM';
+        }
+
+        const upper = raw.toString().trim().toUpperCase();
+        if (!upper) {
+            return 'SUM';
+        }
+
+        // Map common aliases
+        const canonical = upper === 'AVG' ? 'AVERAGE' : upper;
+
+        if (VALID_AGGREGATION_TYPES.includes(canonical)) {
+            return canonical;
+        }
+
+        // If App Builder somehow stored an unexpected value, be defensive
+        // and fall back to SUM so the SOQL stays valid.
+        return 'SUM';
+    }
+
+    // ------------- Tile view-model helpers -------------
+
+    recomputeTileDerivedFields(tile) {
+        const aggregateType = (tile.aggregateType || tile.initialAggregationType || 'SUM')
+            .toString()
+            .toUpperCase();
+
+        // Numeric aggregate?
+        const isNumericAggregate = NUMERIC_TYPES.includes(aggregateType);
+
+        // displayValue
+        let displayValue;
+        if (tile.value === null || tile.value === undefined || tile.value === '') {
+            displayValue = '-';
+        } else if (isNumericAggregate) {
+            const num = parseFloat(tile.value);
+            if (isNaN(num)) {
+                displayValue = tile.value;
+            } else {
+                const fractionDigits =
+                    tile.decimalPlaces !== undefined && tile.decimalPlaces !== null
+                        ? parseInt(tile.decimalPlaces, 10)
+                        : 2;
+
+                try {
+                    const formatted = new Intl.NumberFormat(LOCALE, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: fractionDigits
+                    }).format(num);
+
+                    if (tile.isCurrency) {
+                        displayValue = '$' + formatted;
+                    } else if (tile.isPercent) {
+                        displayValue = formatted + '%';
+                    } else {
+                        displayValue = formatted;
+                    }
+                } catch (_e) {
+                    displayValue = tile.value;
+                }
+            }
+        } else {
+            displayValue = tile.value;
+        }
+
+        // hasRecordCount + summaryRecordLabel
+        let hasRecordCount = false;
+        let summaryRecordLabel = null;
+
+        if (tile.recordCount !== undefined && tile.recordCount !== null) {
+            hasRecordCount = true;
+            const count = Number(tile.recordCount);
+            if (Number.isNaN(count)) {
+                summaryRecordLabel = `${tile.recordCount} records`;
+            } else {
+                const plural = count === 1 ? 'record' : 'records';
+                summaryRecordLabel = `${count} ${plural}`;
+            }
+        }
+
+        // fieldLabelForSummary
+        let fieldLabelForSummary = '';
+        const serverLabel =
+            tile.fieldLabel && typeof tile.fieldLabel === 'string'
+                ? tile.fieldLabel.trim()
+                : '';
+        if (serverLabel) {
+            fieldLabelForSummary = serverLabel;
+        } else {
+            const explicitLabel =
+                tile.label && typeof tile.label === 'string' ? tile.label.trim() : '';
+            if (explicitLabel) {
+                fieldLabelForSummary = explicitLabel;
+            } else {
+                const apiName =
+                    tile.aggregateFieldApiName && typeof tile.aggregateFieldApiName === 'string'
+                        ? tile.aggregateFieldApiName.trim()
+                        : '';
+                fieldLabelForSummary = apiName || 'this field';
+            }
+        }
+
+        // friendlyAggregationLabel
+        let friendlyAggregationLabel;
+        switch (aggregateType) {
+            case 'AVERAGE':
+            case 'AVG':
+                friendlyAggregationLabel = 'Average';
+                break;
+            case 'COUNT':
+                friendlyAggregationLabel = 'Count';
+                break;
+            case 'COUNT_DISTINCT':
+                friendlyAggregationLabel = 'Distinct count';
+                break;
+            case 'MAX':
+                friendlyAggregationLabel = 'Maximum';
+                break;
+            case 'MIN':
+                friendlyAggregationLabel = 'Minimum';
+                break;
+            case 'FIRST':
+                friendlyAggregationLabel = 'First value';
+                break;
+            case 'LAST':
+                friendlyAggregationLabel = 'Last value';
+                break;
+            case 'CONCATENATE':
+                friendlyAggregationLabel = 'Combined values';
+                break;
+            case 'CONCATENATE_DISTINCT':
+                friendlyAggregationLabel = 'Unique combined values';
+                break;
+            default:
+                friendlyAggregationLabel = 'Sum';
+                break;
+        }
+
+        // summaryLabel (tooltip text)
+        let summaryLabel;
+        if (summaryRecordLabel) {
+            summaryLabel = `${friendlyAggregationLabel} of ${fieldLabelForSummary} across ${summaryRecordLabel}`;
+        } else {
+            summaryLabel = `${friendlyAggregationLabel} of ${fieldLabelForSummary}`;
+        }
+
+        // aggregationMenuOptions (gear dropdown)
+        const aggregationMenuOptions = BASE_AGGREGATION_OPTIONS.map((opt) => {
+            const isSelected = opt.value === aggregateType;
+            return {
+                label: opt.label,
+                value: opt.value,
+                isSelected,
+                itemClass:
+                    'slds-dropdown__item' + (isSelected ? ' slds-is-selected' : ''),
+                ariaChecked: isSelected ? 'true' : 'false'
+            };
+        });
+
+        // gearMenuClass
+        let gearMenuClass =
+            'st-rollup-gear-menu slds-dropdown-trigger slds-dropdown-trigger_click';
+        if (tile.isAggregationMenuOpen) {
+            gearMenuClass += ' slds-is-open';
+        }
+
+        return {
+            ...tile,
+            aggregateType,
+            displayValue,
+            hasRecordCount,
+            summaryRecordLabel,
+            summaryLabel,
+            aggregationMenuOptions,
+            gearMenuClass
+        };
+    }
+
+    // ------------- Refresh / loading -------------
+
+    handleRefreshAllClick() {
+        this.refreshAllTiles();
+    }
+
+    refreshAllTiles() {
+        this.tiles.forEach((tile) => {
+            this.loadTile(tile.index);
+        });
+    }
+
+    async loadTile(index) {
+        const globalConfigError = this.globalConfigError;
+        if (globalConfigError) {
+            // If the shared config is bad, set an error on this tile and bail.
+            this.tiles = this.tiles.map((tile) =>
+                tile.index === index
+                    ? this.recomputeTileDerivedFields({
+                          ...tile,
+                          isLoading: false,
+                          error: globalConfigError,
+                          value: null,
+                          recordCount: null,
+                          isCurrency: false,
+                          isPercent: false,
+                          fieldLabel: null
+                      })
+                    : tile
+            );
+            return;
+        }
+
+        const currentTile = this.tiles.find((t) => t.index === index);
+        if (!currentTile) {
+            return;
+        }
+
+        // Clear any previous timeout for this tile.
+        const existingTimeout = this._tileTimeouts[index];
+        if (existingTimeout) {
+            clearTimeout(existingTimeout);
+            delete this._tileTimeouts[index];
+        }
+
+        // Reset tile state to "loading"
+        this.tiles = this.tiles.map((tile) =>
+            tile.index === index
+                ? this.recomputeTileDerivedFields({
+                      ...tile,
+                      isLoading: true,
+                      error: null,
+                      value: null,
+                      recordCount: null,
+                      isCurrency: false,
+                      isPercent: false,
+                      fieldLabel: null
+                  })
+                : tile
+        );
+
+        const timeoutError = new Error(
+            'Timed out while loading rollup. Please refresh the page or contact your admin.'
+        );
+
+        const timeoutPromise = new Promise((_, reject) => {
+            const id = setTimeout(() => {
+                reject(timeoutError);
+            }, LOAD_TIMEOUT_MS);
+            this._tileTimeouts[index] = id;
+        });
+
+        try {
+            const tileAfterReset = this.tiles.find((t) => t.index === index);
+            if (!tileAfterReset) {
+                return;
+            }
+
+            const aggregateTypeToUse =
+                tileAfterReset.aggregateType ||
+                tileAfterReset.initialAggregationType ||
+                'SUM';
+
+            const apexPromise = getRollup({
+                parentId: this.recordId,
+                childObjectApiName: this.childObjectApiName,
+                relationshipFieldApiName: this.relationshipFieldApiName,
+                aggregateFieldApiName: tileAfterReset.aggregateFieldApiName,
+                aggregateType: aggregateTypeToUse,
+                filterCondition: tileAfterReset.filterCondition
+            });
+
+            const data = await Promise.race([apexPromise, timeoutPromise]);
+
+            if (!data) {
+                // No data returned
+                this.tiles = this.tiles.map((tile) =>
+                    tile.index === index
+                        ? this.recomputeTileDerivedFields({
+                              ...tile,
+                              isLoading: false,
+                              error: 'No data was returned for this rollup.',
+                              value: null,
+                              recordCount: null,
+                              isCurrency: false,
+                              isPercent: false,
+                              fieldLabel: null
+                          })
+                        : tile
+                );
+                return;
+            }
+
+            let errorMsg = null;
+            let value = null;
+            let recordCount = null;
+            let isCurrency = false;
+            let isPercent = false;
+            let fieldLabel = null;
+
+            if (data.errorMessage) {
+                // Business / configuration error from Apex – show it in the tile.
+                errorMsg = data.errorMessage;
+                value = undefined;
+                recordCount = data.recordCount;
+                isCurrency = !!data.isCurrency;
+                isPercent = !!data.isPercent;
+                fieldLabel = data.fieldLabel;
+            } else {
+                errorMsg = null;
+                value = data.value;
+                recordCount = data.recordCount;
+                isCurrency = !!data.isCurrency;
+                isPercent = !!data.isPercent;
+                fieldLabel = data.fieldLabel;
+            }
+
+            this.tiles = this.tiles.map((tile) =>
+                tile.index === index
+                    ? this.recomputeTileDerivedFields({
+                          ...tile,
+                          isLoading: false,
+                          error: errorMsg,
+                          value,
+                          recordCount,
+                          isCurrency,
+                          isPercent,
+                          fieldLabel
+                      })
+                    : tile
+            );
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('RollupTileGrid loadTile error', {
+                error,
+                index,
+                recordId: this.recordId,
+                childObjectApiName: this.childObjectApiName,
+                relationshipFieldApiName: this.relationshipFieldApiName
+            });
+
+            let msg = 'Unexpected error while loading rollup.';
+            if (error) {
+                if (error.body && error.body.message) {
+                    msg = error.body.message;
+                } else if (error.message) {
+                    msg = error.message;
+                } else if (typeof error === 'string') {
+                    msg = error;
+                }
+            }
+
+            this.tiles = this.tiles.map((tile) =>
+                tile.index === index
+                    ? this.recomputeTileDerivedFields({
+                          ...tile,
+                          isLoading: false,
+                          error: msg,
+                          value: null,
+                          recordCount: null,
+                          isCurrency: false,
+                          isPercent: false,
+                          fieldLabel: null
+                      })
+                    : tile
+            );
+        } finally {
+            const timeoutId = this._tileTimeouts[index];
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                delete this._tileTimeouts[index];
+            }
+        }
+    }
+
+    // ------------- UI handlers for per-tile controls -------------
+
+    handleGearClick(event) {
+        event.stopPropagation();
+        const index = Number(event.currentTarget.dataset.index);
+        if (!index) {
+            return;
+        }
+
+        this.tiles = this.tiles.map((tile) => {
+            if (tile.index !== index) {
+                return tile;
+            }
+            const next = {
+                ...tile,
+                isAggregationMenuOpen: !tile.isAggregationMenuOpen
+            };
+            return this.recomputeTileDerivedFields(next);
+        });
+    }
+
+    handleAggregationMenuClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const index = Number(event.currentTarget.dataset.index);
+        const newTypeRaw = event.currentTarget.dataset.value;
+
+        if (!index) {
+            return;
+        }
+
+        const newTypeUpper = (newTypeRaw || '').toString().toUpperCase();
+        if (!newTypeUpper) {
+            // Just close the menu.
+            this.tiles = this.tiles.map((tile) =>
+                tile.index === index
+                    ? this.recomputeTileDerivedFields({
+                          ...tile,
+                          isAggregationMenuOpen: false
+                      })
+                    : tile
+            );
+            return;
+        }
+
+        this.tiles = this.tiles.map((tile) => {
+            if (tile.index !== index) {
+                return tile;
+            }
+
+            const normalizedType = this.normalizeAggregationType(newTypeUpper);
+            const next = this.recomputeTileDerivedFields({
+                ...tile,
+                aggregateType: normalizedType,
+                isAggregationMenuOpen: false
+            });
+            return next;
+        });
+
+        // After updating the aggregation type, reload the tile.
+        this.loadTile(index);
+    }
+}
