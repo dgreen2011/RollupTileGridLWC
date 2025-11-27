@@ -75,8 +75,6 @@ const BASE_AGGREGATION_OPTIONS = [
     { label: 'Concatenate Distinct', value: 'CONCATENATE_DISTINCT' },
     { label: 'Count', value: 'COUNT' },
     { label: 'Count Distinct', value: 'COUNT_DISTINCT' },
-    { label: 'First', value: 'FIRST' },
-    { label: 'Last', value: 'LAST' },
     { label: 'Max', value: 'MAX' },
     { label: 'Min', value: 'MIN' },
     { label: 'Sum', value: 'SUM' }
@@ -772,11 +770,11 @@ export default class RollupTileGrid extends LightningElement {
         // summaryLabel (tooltip + text under value)
         let summaryLabel;
         if (summaryRecordLabel) {
-            // Example: "Sum of 'Aerial Footage' field across 2 Project records"
-            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' field across ${summaryRecordLabel}`;
+            // Example: "Sum of 'Aerial Footage' across 2 Project records"
+            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' across ${summaryRecordLabel}`;
         } else {
             // No record count available
-            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' field`;
+            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}'`;
         }
 
         // aggregationMenuOptions (gear dropdown)
@@ -892,10 +890,14 @@ export default class RollupTileGrid extends LightningElement {
                 return;
             }
 
-            const aggregateTypeToUse =
+            let aggregateTypeToUse =
                 tileAfterReset.aggregateType ||
                 tileAfterReset.initialAggregationType ||
                 'SUM';
+
+            if (aggregateTypeToUse === 'COUNT') {
+                aggregateTypeToUse = 'COUNT()';
+            }
 
             const apexPromise = getRollup({
                 parentId: this.recordId,
