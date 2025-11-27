@@ -62,7 +62,7 @@ export default class RollupTileGrid extends LightningElement {
     @api childObjectApiName;
     @api relationshipFieldApiName;
     @api styleVariant = 'Small';
-    @api allowUserToChangeAggregation = false; // kept for compatibility, but grid always uses the gear menu
+    @api allowUserToChangeAggregation = false; // kept for compatibility
     @api decimalPlaces = 2;
 
     // Refresh behavior – single Refresh button in header
@@ -422,6 +422,46 @@ export default class RollupTileGrid extends LightningElement {
         );
     }
 
+    /**
+     * Derive a human-readable singular object label from childObjectApiName
+     * (e.g. "sitetracker__Project__c" -> "Project").
+     */
+    get childObjectLabelSingular() {
+        const apiName = this.childObjectApiName;
+        if (!apiName || typeof apiName !== 'string') {
+            return 'record';
+        }
+
+        let name = apiName.trim();
+
+        // Remove common suffixes
+        name = name.replace(/__c$/i, '').replace(/__x$/i, '');
+
+        // Strip namespace prefix if present (ns__Object)
+        const parts = name.split('__');
+        if (parts.length > 1) {
+            name = parts[1];
+        }
+
+        // Convert from PascalCase / camelCase / underscores to nice words
+        name = name
+            .replace(/_/g, ' ')
+            .replace(/([a-z])([A-Z])/g, '$1 $2')
+            .trim();
+
+        if (!name) {
+            return 'record';
+        }
+
+        name = name
+            .split(' ')
+            .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ''))
+            .join(' ')
+            .trim();
+
+        return name || 'record';
+    }
+
     // ------------- Tile initialization -------------
 
     initializeTilesFromConfig() {
@@ -551,18 +591,21 @@ export default class RollupTileGrid extends LightningElement {
             displayValue = tile.value;
         }
 
-        // hasRecordCount + summaryRecordLabel
+        // hasRecordCount + summaryRecordLabel (now includes object name)
         let hasRecordCount = false;
         let summaryRecordLabel = null;
 
         if (tile.recordCount !== undefined && tile.recordCount !== null) {
             hasRecordCount = true;
             const count = Number(tile.recordCount);
+            const objectLabel = this.childObjectLabelSingular || 'record';
+
             if (Number.isNaN(count)) {
-                summaryRecordLabel = `${tile.recordCount} records`;
+                const recordWord = 'records';
+                summaryRecordLabel = `${tile.recordCount} ${objectLabel} ${recordWord}`;
             } else {
-                const plural = count === 1 ? 'record' : 'records';
-                summaryRecordLabel = `${count} ${plural}`;
+                const recordWord = count === 1 ? 'record' : 'records';
+                summaryRecordLabel = `${count} ${objectLabel} ${recordWord}`;
             }
         }
 
@@ -624,12 +667,14 @@ export default class RollupTileGrid extends LightningElement {
                 break;
         }
 
-        // summaryLabel (tooltip text)
+        // summaryLabel (tooltip + text under value)
         let summaryLabel;
         if (summaryRecordLabel) {
-            summaryLabel = `${friendlyAggregationLabel} of ${fieldLabelForSummary} across ${summaryRecordLabel}`;
+            // Example: "Sum of 'Aerial Footage' field across 2 Project records"
+            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' field across ${summaryRecordLabel}`;
         } else {
-            summaryLabel = `${friendlyAggregationLabel} of ${fieldLabelForSummary}`;
+            // No record count available
+            summaryLabel = `${friendlyAggregationLabel} of '${fieldLabelForSummary}' field`;
         }
 
         // aggregationMenuOptions (gear dropdown)
