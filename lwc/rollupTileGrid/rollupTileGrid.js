@@ -895,9 +895,8 @@ export default class RollupTileGrid extends LightningElement {
                 tileAfterReset.initialAggregationType ||
                 'SUM';
 
-            if (aggregateTypeToUse === 'COUNT') {
-                aggregateTypeToUse = 'COUNT()';
-            }
+            // NOTE: we now pass 'COUNT' straight through to Apex so it can
+            // execute a true COUNT() branch instead of behaving like SUM.
 
             const apexPromise = getRollup({
                 parentId: this.recordId,
