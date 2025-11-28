@@ -167,6 +167,9 @@ export default class RollupTileGrid extends LightningElement {
     // Refresh behavior – single Refresh button in header
     @api showRefreshButton; // default from meta.xml; treated as true if undefined
 
+    // New: control whether to show summary text under the rollup value
+    @api showSummaryBelowValue; // default true if undefined
+
     // ---- Tile-specific @api properties (1–25) ----
     @api tile1Label;
     @api tile1AggregateFieldApiName;
@@ -330,6 +333,9 @@ export default class RollupTileGrid extends LightningElement {
     // Bound window click handler (for outside-click closing).
     _windowClickHandler;
 
+    // New: bound handler for global refresh events across multiple grids.
+    _globalRefreshHandler;
+
     // ------------- Lifecycle -------------
 
     connectedCallback() {
@@ -340,6 +346,13 @@ export default class RollupTileGrid extends LightningElement {
         if (typeof window !== 'undefined') {
             this._windowClickHandler = this.handleWindowClick.bind(this);
             window.addEventListener('click', this._windowClickHandler);
+
+            // Listen for global refresh events so multiple grids stay in sync.
+            this._globalRefreshHandler = this.handleGlobalRefresh.bind(this);
+            window.addEventListener(
+                'st_rollup_tile_grid_refresh',
+                this._globalRefreshHandler
+            );
         }
     }
 
@@ -373,6 +386,15 @@ export default class RollupTileGrid extends LightningElement {
         if (this._windowClickHandler && typeof window !== 'undefined') {
             window.removeEventListener('click', this._windowClickHandler);
             this._windowClickHandler = null;
+        }
+
+        // Remove global refresh listener.
+        if (this._globalRefreshHandler && typeof window !== 'undefined') {
+            window.removeEventListener(
+                'st_rollup_tile_grid_refresh',
+                this._globalRefreshHandler
+            );
+            this._globalRefreshHandler = null;
         }
     }
 
@@ -493,6 +515,16 @@ export default class RollupTileGrid extends LightningElement {
             this.showRefreshButton === 'true' ||
             this.showRefreshButton === undefined ||
             this.showRefreshButton === null
+        );
+    }
+
+    // New: effective flag for showing summary text under values.
+    get showSummaryBelowValueEffective() {
+        return (
+            this.showSummaryBelowValue === true ||
+            this.showSummaryBelowValue === 'true' ||
+            this.showSummaryBelowValue === undefined ||
+            this.showSummaryBelowValue === null
         );
     }
 
@@ -815,7 +847,20 @@ export default class RollupTileGrid extends LightningElement {
     // ------------- Refresh / loading -------------
 
     handleRefreshAllClick() {
-        this.refreshAllTiles();
+        // Clicking Refresh on one grid should refresh all grids on the same page.
+        if (typeof window !== 'undefined') {
+            const evt = new CustomEvent('st_rollup_tile_grid_refresh', {
+                bubbles: false,
+                composed: false,
+                detail: {
+                    sourceRecordId: this.recordId || null
+                }
+            });
+            window.dispatchEvent(evt);
+        } else {
+            // Fallback – just refresh this grid.
+            this.refreshAllTiles();
+        }
     }
 
     refreshAllTiles() {
@@ -1036,6 +1081,22 @@ export default class RollupTileGrid extends LightningElement {
         }
 
         this.closeAllAggregationMenus();
+    }
+
+    /**
+     * Handler for global refresh events so that clicking Refresh on one
+     * grid refreshes all grids on the same record page.
+     */
+    handleGlobalRefresh(event) {
+        const detail = event && event.detail ? event.detail : {};
+        const sourceRecordId = detail.sourceRecordId;
+
+        // If the event specifies a recordId, and we also have one, require them to match.
+        if (sourceRecordId && this.recordId && sourceRecordId !== this.recordId) {
+            return;
+        }
+
+        this.refreshAllTiles();
     }
 
     /**
