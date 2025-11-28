@@ -134,7 +134,7 @@ public with sharing class RollupService {
             // =========================
             if (aggType == 'COUNT') {
                 String countSoql =
-                    'SELECT COUNT() total ' +
+                    'SELECT COUNT() ' +
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
 
@@ -229,7 +229,7 @@ public with sharing class RollupService {
                 }
 
                 String countSoql =
-                    'SELECT COUNT() total ' +
+                    'SELECT COUNT() ' +
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
 
