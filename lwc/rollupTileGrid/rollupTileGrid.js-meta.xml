@@ -91,6 +91,15 @@
                 default="true"
             />
 
+            <!-- New: control summary text under rollup values -->
+            <property
+                name="showSummaryBelowValue"
+                type="Boolean"
+                label="Show summary text under rollup value"
+                description="Check to show the summary text (e.g., 'Average of &quot;Aerial Footage&quot; across 2 Project records') below each tile's value."
+                default="true"
+            />
+
             <!-- Tile 1 -->
             <property
                 name="tile1Label"
