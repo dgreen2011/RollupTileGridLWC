@@ -139,7 +139,7 @@
 .st-rollup-tile__value {
     font-size: 1.2rem;
     font-weight: 600;
-    color: #16325c; /* SLDS neutral text color */
+    color: #000000; /* black text */
 }
 
 /* Error text */
