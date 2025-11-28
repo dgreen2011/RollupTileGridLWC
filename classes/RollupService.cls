@@ -117,12 +117,17 @@ public with sharing class RollupService {
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
 
-                AggregateResult ar = Database.query(soql)[0];
-                Object rawCount = ar.get('totalCount');
+                List<AggregateResult> ars =
+                    (List<AggregateResult>)Database.query(soql);
+                AggregateResult ar = ars.isEmpty() ? null : ars[0];
 
-                Integer countVal = (rawCount == null)
-                    ? 0
-                    : Integer.valueOf(String.valueOf(rawCount));
+                Integer countVal = 0;
+                if (ar != null) {
+                    Object rawCount = ar.get('totalCount');
+                    if (rawCount != null) {
+                        countVal = Integer.valueOf(String.valueOf(rawCount));
+                    }
+                }
 
                 result.recordCount = countVal;
                 result.value       = String.valueOf(countVal);
@@ -142,17 +147,24 @@ public with sharing class RollupService {
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
 
-                AggregateResult ar = Database.query(soql)[0];
+                List<AggregateResult> ars =
+                    (List<AggregateResult>)Database.query(soql);
+                AggregateResult ar = ars.isEmpty() ? null : ars[0];
 
-                Object rawDistinct = ar.get('distinctCount');
-                Object rawTotal    = ar.get('totalCount');
+                Integer distinctVal = 0;
+                Integer totalVal    = 0;
 
-                Integer distinctVal = (rawDistinct == null)
-                    ? 0
-                    : Integer.valueOf(String.valueOf(rawDistinct));
-                Integer totalVal = (rawTotal == null)
-                    ? 0
-                    : Integer.valueOf(String.valueOf(rawTotal));
+                if (ar != null) {
+                    Object rawDistinct = ar.get('distinctCount');
+                    Object rawTotal    = ar.get('totalCount');
+
+                    if (rawDistinct != null) {
+                        distinctVal = Integer.valueOf(String.valueOf(rawDistinct));
+                    }
+                    if (rawTotal != null) {
+                        totalVal = Integer.valueOf(String.valueOf(rawTotal));
+                    }
+                }
 
                 result.recordCount = totalVal;
                 result.value       = String.valueOf(distinctVal);
@@ -233,11 +245,17 @@ public with sharing class RollupService {
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
 
-                AggregateResult countAr = Database.query(countSoql)[0];
-                Object rawTotal = countAr.get('totalCount');
-                Integer totalVal = (rawTotal == null)
-                    ? 0
-                    : Integer.valueOf(String.valueOf(rawTotal));
+                List<AggregateResult> countResults =
+                    (List<AggregateResult>)Database.query(countSoql);
+                AggregateResult countAr = countResults.isEmpty() ? null : countResults[0];
+
+                Integer totalVal = 0;
+                if (countAr != null) {
+                    Object rawTotal = countAr.get('totalCount');
+                    if (rawTotal != null) {
+                        totalVal = Integer.valueOf(String.valueOf(rawTotal));
+                    }
+                }
 
                 result.recordCount = totalVal;
 
@@ -276,14 +294,17 @@ public with sharing class RollupService {
                     'FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause;
 
-                AggregateResult ar = Database.query(soql)[0];
+                List<AggregateResult> ars =
+                    (List<AggregateResult>)Database.query(soql);
+                AggregateResult ar = ars.isEmpty() ? null : ars[0];
 
-                Object rawAgg   = ar.get('aggVal');
-                Object rawTotal = ar.get('totalCount');
+                Object rawAgg   = (ar == null) ? null : ar.get('aggVal');
+                Object rawTotal = (ar == null) ? null : ar.get('totalCount');
 
-                Integer totalVal = (rawTotal == null)
-                    ? 0
-                    : Integer.valueOf(String.valueOf(rawTotal));
+                Integer totalVal = 0;
+                if (rawTotal != null) {
+                    totalVal = Integer.valueOf(String.valueOf(rawTotal));
+                }
 
                 result.recordCount = totalVal;
                 result.value       = (rawAgg == null) ? null : String.valueOf(rawAgg);
@@ -292,22 +313,26 @@ public with sharing class RollupService {
             }
 
             // 6) Fallback: Unknown aggregate type – behave like COUNT()
-            {
-                String soql =
-                    'SELECT COUNT() totalCount ' +
-                    'FROM ' + childObjectApiName +
-                    ' WHERE ' + whereClause;
+            String fallbackSoql =
+                'SELECT COUNT() totalCount ' +
+                'FROM ' + childObjectApiName +
+                ' WHERE ' + whereClause;
 
-                AggregateResult ar = Database.query(soql)[0];
-                Object rawTotal = ar.get('totalCount');
-                Integer totalVal = (rawTotal == null)
-                    ? 0
-                    : Integer.valueOf(String.valueOf(rawTotal));
+            List<AggregateResult> fbResults =
+                (List<AggregateResult>)Database.query(fallbackSoql);
+            AggregateResult fbAr = fbResults.isEmpty() ? null : fbResults[0];
 
-                result.recordCount = totalVal;
-                result.value       = String.valueOf(totalVal);
-                return result;
+            Integer fbTotal = 0;
+            if (fbAr != null) {
+                Object rawTotal = fbAr.get('totalCount');
+                if (rawTotal != null) {
+                    fbTotal = Integer.valueOf(String.valueOf(rawTotal));
+                }
             }
+
+            result.recordCount = fbTotal;
+            result.value       = String.valueOf(fbTotal);
+            return result;
 
         } catch (Exception ex) {
             // Catch *all* errors so they come back as an errorMessage (no hard failure in LWC)
@@ -325,6 +350,9 @@ public with sharing class RollupService {
         String norm = agg.trim().toUpperCase();
         if (norm == 'AVG') {
             norm = 'AVERAGE';
+        }
+        if (norm == 'COUNT()') {
+            norm = 'COUNT';
         }
         return norm;
     }
