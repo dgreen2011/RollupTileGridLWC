@@ -180,13 +180,16 @@
                                     {tile.displayValue}
                                 </p>
 
-                                <template if:true={tile.hasRecordCount}>
-                                    <p
-                                        class="st-rollup-tile__summary slds-text-body_small slds-truncate"
-                                        title={tile.summaryLabel}
-                                    >
-                                        {tile.summaryLabel}
-                                    </p>
+                                <!-- New: summary can be toggled off for the whole grid -->
+                                <template if:true={showSummaryBelowValueEffective}>
+                                    <template if:true={tile.hasRecordCount}>
+                                        <p
+                                            class="st-rollup-tile__summary slds-text-body_small slds-truncate"
+                                            title={tile.summaryLabel}
+                                        >
+                                            {tile.summaryLabel}
+                                        </p>
+                                    </template>
                                 </template>
                             </template>
                         </template>
