@@ -518,6 +518,15 @@ export default class RollupTileGrid extends LightningElement {
         );
     }
 
+    get allowUserToChangeAggregationEffective() {
+        return (
+            this.allowUserToChangeAggregation === true ||
+            this.allowUserToChangeAggregation === 'true' ||
+            this.allowUserToChangeAggregation === undefined ||
+            this.allowUserToChangeAggregation === null
+        );
+    }
+
     // New: effective flag for showing summary text under values.
     get showSummaryBelowValueEffective() {
         return (
