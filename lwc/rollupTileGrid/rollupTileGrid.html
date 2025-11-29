@@ -74,75 +74,77 @@
                             </span>
                         </div>
 
-                        <div
-                            class="slds-col slds-no-flex st-rollup-tile__gear-wrapper"
-                        >
-                            <div class={tile.gearMenuClass}>
-                                <!-- Gear button (hover shows summary, click opens aggregation dropdown) -->
-                                <button
-                                    class="slds-button slds-button_icon slds-button_icon-border-filled"
-                                    title={tile.summaryLabel}
-                                    aria-label={tile.summaryLabel}
-                                    data-index={tile.index}
-                                    onclick={handleGearClick}
-                                >
-                                    <lightning-icon
-                                        icon-name="utility:settings"
-                                        size="x-small"
-                                        alternative-text="Change rollup aggregation"
-                                    ></lightning-icon>
-                                    <span class="slds-assistive-text">
-                                        Change rollup aggregation
-                                    </span>
-                                </button>
-
-                                <!-- Aggregation dropdown menu -->
-                                <div
-                                    class="slds-dropdown slds-dropdown_right slds-dropdown_actions"
-                                >
-                                    <ul
-                                        class="slds-dropdown__list"
-                                        role="menu"
+                        <template if:true={allowUserToChangeAggregationEffective}>
+                            <div
+                                class="slds-col slds-no-flex st-rollup-tile__gear-wrapper"
+                            >
+                                <div class={tile.gearMenuClass}>
+                                    <!-- Gear button (hover shows summary, click opens aggregation dropdown) -->
+                                    <button
+                                        class="slds-button slds-button_icon slds-button_icon-border-filled"
+                                        title={tile.summaryLabel}
+                                        aria-label={tile.summaryLabel}
+                                        data-index={tile.index}
+                                        onclick={handleGearClick}
                                     >
-                                        <template
-                                            for:each={tile.aggregationMenuOptions}
-                                            for:item="opt"
+                                        <lightning-icon
+                                            icon-name="utility:settings"
+                                            size="x-small"
+                                            alternative-text="Change rollup aggregation"
+                                        ></lightning-icon>
+                                        <span class="slds-assistive-text">
+                                            Change rollup aggregation
+                                        </span>
+                                    </button>
+
+                                    <!-- Aggregation dropdown menu -->
+                                    <div
+                                        class="slds-dropdown slds-dropdown_right slds-dropdown_actions"
+                                    >
+                                        <ul
+                                            class="slds-dropdown__list"
+                                            role="menu"
                                         >
-                                            <li
-                                                key={opt.value}
-                                                role="menuitemcheckbox"
-                                                class={opt.itemClass}
-                                                aria-checked={opt.ariaChecked}
+                                            <template
+                                                for:each={tile.aggregationMenuOptions}
+                                                for:item="opt"
                                             >
-                                                <a
-                                                    href="javascript:void(0);"
-                                                    role="menuitem"
-                                                    class="st-rollup-gear-menu__item-link"
-                                                    data-index={tile.index}
-                                                    data-value={opt.value}
-                                                    onclick={handleAggregationMenuClick}
+                                                <li
+                                                    key={opt.value}
+                                                    role="menuitemcheckbox"
+                                                    class={opt.itemClass}
+                                                    aria-checked={opt.ariaChecked}
                                                 >
-                                                    <span
-                                                        class="slds-truncate"
-                                                        title={opt.label}
+                                                    <a
+                                                        href="javascript:void(0);"
+                                                        role="menuitem"
+                                                        class="st-rollup-gear-menu__item-link"
+                                                        data-index={tile.index}
+                                                        data-value={opt.value}
+                                                        onclick={handleAggregationMenuClick}
                                                     >
-                                                        {opt.label}
-                                                    </span>
-                                                    <template if:true={opt.isSelected}>
-                                                        <lightning-icon
-                                                            icon-name="utility:check"
-                                                            size="x-small"
-                                                            class="st-rollup-gear-menu__check"
-                                                            alternative-text="Selected"
-                                                        ></lightning-icon>
-                                                    </template>
-                                                </a>
-                                            </li>
-                                        </template>
-                                    </ul>
+                                                        <span
+                                                            class="slds-truncate"
+                                                            title={opt.label}
+                                                        >
+                                                            {opt.label}
+                                                        </span>
+                                                        <template if:true={opt.isSelected}>
+                                                            <lightning-icon
+                                                                icon-name="utility:check"
+                                                                size="x-small"
+                                                                class="st-rollup-gear-menu__check"
+                                                                alternative-text="Selected"
+                                                            ></lightning-icon>
+                                                        </template>
+                                                    </a>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </template>
                     </div>
 
                     <!-- Tile body: value / loading / error / summary -->
