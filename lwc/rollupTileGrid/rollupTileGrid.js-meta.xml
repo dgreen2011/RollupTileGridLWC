@@ -68,13 +68,6 @@
                 default="Small"
             />
             <property
-                name="allowUserToChangeAggregation"
-                type="Boolean"
-                label="Allow users to change aggregation type at runtime"
-                description="Legacy flag – the gear menu on each tile now controls aggregation."
-                default="false"
-            />
-            <property
                 name="decimalPlaces"
                 type="Integer"
                 label="Default decimal places for numeric values"
@@ -86,8 +79,16 @@
             <property
                 name="showRefreshButton"
                 type="Boolean"
-                label="Show Refresh All button"
+                label="Show Refresh button"
                 description="Check to show a single Refresh button for all tiles in this grid. Clear to hide it entirely."
+                default="true"
+            />
+
+            <property
+                name="allowUserToChangeAggregation"
+                type="Boolean"
+                label="Allow users to change aggregation type at runtime"
+                description="Check to show a gear icon on each tile so users can change the aggregation type at runtime."
                 default="true"
             />
 
