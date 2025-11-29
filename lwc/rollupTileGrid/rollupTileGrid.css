@@ -46,12 +46,6 @@
     transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-/* Hover: subtle emphasis, no movement */
-.st-rollup-tile:hover {
-    border-color: #d0d0d0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-}
-
 /* ----------
    SMALL (StyleVariant = Small)
    Inline KPI – everything on one horizontal row
