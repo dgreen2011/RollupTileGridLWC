@@ -59,6 +59,23 @@
                 required="true"
                 datasource="apex://RollupRelationshipFieldPicklist"
             />
+
+            <!-- NEW: optional grandchild configuration -->
+            <property
+                name="grandchildObjectApiName"
+                type="String"
+                label="Grandchild Object"
+                description="Optional grandchild object to roll up from when using a Parent → Child → Grandchild path."
+                datasource="apex://RollupGrandchildObjectPicklist"
+            />
+            <property
+                name="grandchildRelationshipFieldApiName"
+                type="String"
+                label="Relationship Field (lookup on Grandchild)"
+                description="Lookup field on the grandchild object that points to the child object. If populated (along with Grandchild Object), rollups use this grandchild path instead of the direct child."
+                datasource="apex://RollupGrandchildRelationshipFieldPicklist"
+            />
+
             <property
                 name="styleVariant"
                 type="String"
@@ -92,7 +109,7 @@
                 default="true"
             />
 
-            <!-- New: control summary text under rollup values -->
+            <!-- Control summary text under rollup values -->
             <property
                 name="showSummaryBelowValue"
                 type="Boolean"
