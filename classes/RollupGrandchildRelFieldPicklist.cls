@@ -85,7 +85,7 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
                     String fieldLabel = fd.getLabel();
 
                     // Value stored in the design attribute; normalised later by RollupService.
-                    // Example: "Grandchild__c.Project__c"
+                    // Example: "sitetracker__Activity__c.sitetracker__Project__c"
                     String value = grandApi + '.' + fieldApi;
                     if (!addedValues.add(value)) {
                         continue;
@@ -101,9 +101,14 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
                         fieldLabel +
                         ' (' + value + ')';
 
-                    // Lowercase search tail for friendlier App Builder search.
+                    // Lowercase search tail so App Builder’s case-sensitive search
+                    // also matches things like "activity", "project", etc.
                     String searchTail =
                         ' | ' +
+                        childLabel.toLowerCase() +
+                        ' • ' +
+                        grandLabel.toLowerCase() +
+                        ' • ' +
                         fieldLabel.toLowerCase() +
                         ' (' + fieldApi.toLowerCase() + ')';
 
