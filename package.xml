@@ -5,6 +5,8 @@
         <members>RollupChildObjectPicklist</members>
         <members>RollupRelationshipFieldPicklist</members>
         <members>RollupAggregateFieldPicklist</members>
+        <members>RollupGrandchildObjectPicklist</members>
+        <members>RollupGrandchildRelationshipFieldPicklist</members>
         <name>ApexClass</name>
     </types>
     <types>
