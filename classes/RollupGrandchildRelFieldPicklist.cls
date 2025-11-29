@@ -6,11 +6,9 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
         this.context = context;
     }
 
+    // No default – avoid doing the heavy getValues() work twice.
+    // Admin will explicitly choose the lookup on the grandchild.
     global override VisualEditor.DataRow getDefaultValue() {
-        VisualEditor.DynamicPickListRows rows = getValues();
-        if (rows != null && rows.size() > 0) {
-            return rows.get(0);
-        }
         return null;
     }
 
