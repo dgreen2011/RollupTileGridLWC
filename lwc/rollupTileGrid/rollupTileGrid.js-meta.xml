@@ -60,7 +60,7 @@
                 datasource="apex://RollupRelationshipFieldPicklist"
             />
 
-            <!-- NEW: optional grandchild configuration -->
+            <!-- Optional grandchild configuration -->
             <property
                 name="grandchildObjectApiName"
                 type="String"
@@ -109,7 +109,7 @@
                 default="true"
             />
 
-            <!-- Control summary text under rollup values -->
+            <!-- New: control summary text under rollup values -->
             <property
                 name="showSummaryBelowValue"
                 type="Boolean"
