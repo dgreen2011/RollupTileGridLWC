@@ -1,8 +1,8 @@
-global with sharing class RollupGrandchildRelationshipFieldPicklist extends VisualEditor.DynamicPickList {
+global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.DynamicPickList {
 
     private VisualEditor.DesignTimePageContext context;
 
-    global RollupGrandchildRelationshipFieldPicklist(VisualEditor.DesignTimePageContext context) {
+    global RollupGrandchildRelFieldPicklist(VisualEditor.DesignTimePageContext context) {
         this.context = context;
     }
 
