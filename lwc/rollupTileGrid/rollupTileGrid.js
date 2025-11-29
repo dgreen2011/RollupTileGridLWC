@@ -21,14 +21,7 @@ const VALID_AGGREGATION_TYPES = [
 ];
 
 // Aggregations that produce numeric values (used for number formatting).
-const NUMERIC_TYPES = [
-    'SUM',
-    'AVERAGE',
-    'MAX',
-    'MIN',
-    'COUNT',
-    'COUNT_DISTINCT'
-];
+const NUMERIC_TYPES = ['SUM', 'AVERAGE', 'MAX', 'MIN', 'COUNT', 'COUNT_DISTINCT'];
 
 // Aggregations that imply a numeric field (for filtering by field type).
 const NUMERIC_FIELD_AGG_TYPES = ['SUM', 'AVERAGE', 'MAX', 'MIN'];
@@ -119,9 +112,7 @@ function inferFieldCategoryFromAggregationType(rawAggType) {
  */
 function resolveFieldCategory(tile) {
     let category =
-        tile && tile.fieldCategory
-            ? tile.fieldCategory
-            : FIELD_CATEGORY.UNKNOWN;
+        tile && tile.fieldCategory ? tile.fieldCategory : FIELD_CATEGORY.UNKNOWN;
 
     // If Apex tells us this is currency/percent, treat as numeric regardless
     // of what was inferred from the initial aggregation type.
@@ -160,6 +151,12 @@ export default class RollupTileGrid extends LightningElement {
     // Shared rollup config for all tiles
     @api childObjectApiName;
     @api relationshipFieldApiName;
+
+    // NEW: optional grandchild path (Parent -> Child -> Grandchild).
+    // If both are populated, the grid rolls up from the GRANDCHILD object.
+    @api grandchildObjectApiName;
+    @api grandchildRelationshipFieldApiName;
+
     @api styleVariant = 'Small';
     @api allowUserToChangeAggregation = false; // kept for compatibility
     @api decimalPlaces = 2;
@@ -167,7 +164,7 @@ export default class RollupTileGrid extends LightningElement {
     // Refresh behavior – single Refresh button in header
     @api showRefreshButton; // default from meta.xml; treated as true if undefined
 
-    // New: control whether to show summary text under the rollup value
+    // Control whether to show summary text under the rollup value
     @api showSummaryBelowValue; // default true if undefined
 
     // ---- Tile-specific @api properties (1–25) ----
@@ -333,7 +330,7 @@ export default class RollupTileGrid extends LightningElement {
     // Bound window click handler (for outside-click closing).
     _windowClickHandler;
 
-    // New: bound handler for global refresh events across multiple grids.
+    // Bound handler for global refresh events across multiple grids.
     _globalRefreshHandler;
 
     // ------------- Lifecycle -------------
@@ -418,7 +415,9 @@ export default class RollupTileGrid extends LightningElement {
             stack,
             recordId: this.recordId,
             childObjectApiName: this.childObjectApiName,
-            relationshipFieldApiName: this.relationshipFieldApiName
+            relationshipFieldApiName: this.relationshipFieldApiName,
+            grandchildObjectApiName: this.grandchildObjectApiName,
+            grandchildRelationshipFieldApiName: this.grandchildRelationshipFieldApiName
         });
 
         this.tiles = this.tiles.map((tile) =>
@@ -527,7 +526,7 @@ export default class RollupTileGrid extends LightningElement {
         );
     }
 
-    // New: effective flag for showing summary text under values.
+    // Effective flag for showing summary text under values.
     get showSummaryBelowValueEffective() {
         return (
             this.showSummaryBelowValue === true ||
@@ -537,16 +536,62 @@ export default class RollupTileGrid extends LightningElement {
         );
     }
 
+    // ------------- Grandchild-mode helpers -------------
+
+    /**
+     * True when the admin has configured both grandchild properties.
+     * When true, queries roll up from the grandchild object instead of the child.
+     */
+    get isGrandchildMode() {
+        const obj =
+            this.grandchildObjectApiName &&
+            this.grandchildObjectApiName.toString().trim();
+        const rel =
+            this.grandchildRelationshipFieldApiName &&
+            this.grandchildRelationshipFieldApiName.toString().trim();
+        return !!(obj && rel);
+    }
+
+    /**
+     * Object API name to use when building summary labels:
+     *  - Child object in normal mode
+     *  - Grandchild object when grandchild mode is enabled
+     */
+    get aggregateObjectApiNameForLabel() {
+        if (this.isGrandchildMode && this.grandchildObjectApiName) {
+            return this.grandchildObjectApiName;
+        }
+        return this.childObjectApiName;
+    }
+
     // ------------- Config error (shared across tiles) -------------
 
     get globalConfigError() {
         const missing = [];
+
         if (!this.childObjectApiName) {
             missing.push('Child Object');
         }
         if (!this.relationshipFieldApiName) {
             missing.push('Relationship Field');
         }
+
+        // Only require grandchild properties if the admin has started to configure them.
+        const hasAnyGrandchildConfig =
+            (this.grandchildObjectApiName &&
+                this.grandchildObjectApiName.toString().trim()) ||
+            (this.grandchildRelationshipFieldApiName &&
+                this.grandchildRelationshipFieldApiName.toString().trim());
+
+        if (hasAnyGrandchildConfig) {
+            if (!this.grandchildObjectApiName) {
+                missing.push('Grandchild Object');
+            }
+            if (!this.grandchildRelationshipFieldApiName) {
+                missing.push('Relationship Field (lookup on grandchild)');
+            }
+        }
+
         if (!this.recordId) {
             missing.push('recordId');
         }
@@ -563,11 +608,13 @@ export default class RollupTileGrid extends LightningElement {
     }
 
     /**
-     * Derive a human-readable singular object label from childObjectApiName
-     * (e.g. "sitetracker__Project__c" -> "Project").
+     * Derive a human-readable singular object label from the object we’re
+     * actually aggregating over:
+     *  - Child object in normal mode
+     *  - Grandchild object in grandchild mode
      */
     get childObjectLabelSingular() {
-        const apiName = this.childObjectApiName;
+        const apiName = this.aggregateObjectApiNameForLabel;
         if (!apiName || typeof apiName !== 'string') {
             return 'record';
         }
@@ -595,7 +642,9 @@ export default class RollupTileGrid extends LightningElement {
 
         name = name
             .split(' ')
-            .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ''))
+            .map((w) =>
+                w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ''
+            )
             .join(' ')
             .trim();
 
@@ -626,8 +675,10 @@ export default class RollupTileGrid extends LightningElement {
         const filterCondition = this[`tile${suffix}FilterCondition`];
         const perTileDecimal = this[`tile${suffix}DecimalPlaces`];
 
-        const initialAggregationType = this.normalizeAggregationType(rawAggregationType);
-        const fieldCategory = inferFieldCategoryFromAggregationType(initialAggregationType);
+        const initialAggregationType =
+            this.normalizeAggregationType(rawAggregationType);
+        const fieldCategory =
+            inferFieldCategoryFromAggregationType(initialAggregationType);
 
         const decimalPlaces =
             perTileDecimal !== null && perTileDecimal !== undefined
@@ -760,12 +811,15 @@ export default class RollupTileGrid extends LightningElement {
             fieldLabelForSummary = serverLabel;
         } else {
             const explicitLabel =
-                tile.label && typeof tile.label === 'string' ? tile.label.trim() : '';
+                tile.label && typeof tile.label === 'string'
+                    ? tile.label.trim()
+                    : '';
             if (explicitLabel) {
                 fieldLabelForSummary = explicitLabel;
             } else {
                 const apiName =
-                    tile.aggregateFieldApiName && typeof tile.aggregateFieldApiName === 'string'
+                    tile.aggregateFieldApiName &&
+                    typeof tile.aggregateFieldApiName === 'string'
                         ? tile.aggregateFieldApiName.trim()
                         : '';
                 fieldLabelForSummary = apiName || 'this field';
@@ -828,7 +882,8 @@ export default class RollupTileGrid extends LightningElement {
                     value: opt.value,
                     isSelected,
                     itemClass:
-                        'slds-dropdown__item' + (isSelected ? ' slds-is-selected' : ''),
+                        'slds-dropdown__item' +
+                        (isSelected ? ' slds-is-selected' : ''),
                     ariaChecked: isSelected ? 'true' : 'false'
                 };
             });
@@ -958,7 +1013,13 @@ export default class RollupTileGrid extends LightningElement {
                 relationshipFieldApiName: this.relationshipFieldApiName,
                 aggregateFieldApiName: tileAfterReset.aggregateFieldApiName,
                 aggregateType: aggregateTypeToUse,
-                filterCondition: tileAfterReset.filterCondition
+                filterCondition: tileAfterReset.filterCondition,
+                grandchildObjectApiName: this.isGrandchildMode
+                    ? this.grandchildObjectApiName
+                    : null,
+                grandchildRelationshipFieldApiName: this.isGrandchildMode
+                    ? this.grandchildRelationshipFieldApiName
+                    : null
             });
 
             const data = await Promise.race([apexPromise, timeoutPromise]);
@@ -1027,7 +1088,9 @@ export default class RollupTileGrid extends LightningElement {
                 index,
                 recordId: this.recordId,
                 childObjectApiName: this.childObjectApiName,
-                relationshipFieldApiName: this.relationshipFieldApiName
+                relationshipFieldApiName: this.relationshipFieldApiName,
+                grandchildObjectApiName: this.grandchildObjectApiName,
+                grandchildRelationshipFieldApiName: this.grandchildRelationshipFieldApiName
             });
 
             let msg = 'Unexpected error while loading rollup.';
