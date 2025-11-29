@@ -73,7 +73,7 @@
                 type="String"
                 label="Relationship Field (lookup on Grandchild)"
                 description="Lookup field on the grandchild object that points to the child object. If populated (along with Grandchild Object), rollups use this grandchild path instead of the direct child."
-                datasource="apex://RollupGrandchildRelationshipFieldPicklist"
+                datasource="apex://RollupGrandchildRelFieldPicklist"
             />
 
             <property
