@@ -29,9 +29,10 @@ global with sharing class RollupGrandchildObjectPicklist extends VisualEditor.Dy
             }
 
             Schema.DescribeSObjectResult parentDescribe = parentType.getDescribe();
-            Set<String> seenApiNames = new Set<String>();
 
-            // For each CHILD of the parent, look for its CHILDREN (grandchildren of the parent).
+            // Ensure we only show each grandchild object once.
+            Set<String> seenGrandchildApis = new Set<String>();
+
             for (Schema.ChildRelationship childRel : parentDescribe.getChildRelationships()) {
                 Schema.SObjectType childType = childRel.getChildSObject();
                 if (childType == null) {
@@ -41,6 +42,7 @@ global with sharing class RollupGrandchildObjectPicklist extends VisualEditor.Dy
                 Schema.DescribeSObjectResult childDescribe = childType.getDescribe();
                 String childLabel = childDescribe.getLabel();
 
+                // For each CHILD of the parent, look for its CHILDREN (grandchildren of the parent).
                 for (Schema.ChildRelationship grandRel : childDescribe.getChildRelationships()) {
                     Schema.SObjectType grandType = grandRel.getChildSObject();
                     if (grandType == null) {
@@ -48,30 +50,37 @@ global with sharing class RollupGrandchildObjectPicklist extends VisualEditor.Dy
                     }
 
                     Schema.DescribeSObjectResult grandDescribe = grandType.getDescribe();
-                    String grandApi = grandDescribe.getName();
-                    if (String.isBlank(grandApi) || !seenApiNames.add(grandApi)) {
+                    String grandApi   = grandDescribe.getName();
+                    String grandLabel = grandDescribe.getLabel();
+
+                    if (String.isBlank(grandApi) || !seenGrandchildApis.add(grandApi)) {
                         continue;
                     }
 
-                    String grandLabel = grandDescribe.getLabel();
-
-                    // Label pattern: "Child Label • Grandchild Label (GrandchildApi)"
-                    String label =
+                    // Core label similar to other picklists:
+                    // "Child Label • Grandchild Label (GrandchildApi)"
+                    String coreLabel =
                         childLabel +
                         ' • ' +
                         grandLabel +
                         ' (' + grandApi + ')';
 
-                    rows.addRow(
-                        new VisualEditor.DataRow(
-                            label,
-                            grandApi
-                        )
-                    );
+                    // Lowercase search tail so App Builder’s case-sensitive search
+                    // matches things like "activity" or "myobject__c".
+                    String searchTail =
+                        ' | ' +
+                        grandLabel.toLowerCase() +
+                        ' (' + grandApi.toLowerCase() + ')';
+
+                    String label = coreLabel + searchTail;
+
+                    // DataRow(labelShownToAdmin, valueStoredInAttribute)
+                    rows.addRow(new VisualEditor.DataRow(label, grandApi));
                 }
             }
         } catch (Exception e) {
-            // Swallow errors so Lightning pages and App Builder keep loading.
+            // Swallow errors so Lightning pages and App Builder keep loading
+            // even if something goes wrong here.
         }
 
         return rows;
