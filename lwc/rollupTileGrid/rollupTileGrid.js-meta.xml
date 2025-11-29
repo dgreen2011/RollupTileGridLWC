@@ -64,15 +64,15 @@
             <property
                 name="grandchildObjectApiName"
                 type="String"
-                label="Grandchild Object"
-                description="Optional grandchild object to roll up from when using a Parent → Child → Grandchild path."
+                label="Grandchild Object (optional)"
+                description="Optional grandchild object to roll up from when using a Parent → Child → Grandchild path. Leave this blank (together with the Relationship Field (lookup on Grandchild)) to roll up directly from the child object."
                 datasource="apex://RollupGrandchildObjectPicklist"
             />
             <property
                 name="grandchildRelationshipFieldApiName"
                 type="String"
-                label="Relationship Field (lookup on Grandchild)"
-                description="Lookup field on the grandchild object that points to the child object. If populated (along with Grandchild Object), rollups use this grandchild path instead of the direct child."
+                label="Relationship Field (lookup on Grandchild, optional)"
+                description="Optional lookup field on the grandchild object that points to the child object. If both this and Grandchild Object are populated, rollups use the grandchild path; if both are blank, rollups use the direct child path."
                 datasource="apex://RollupGrandchildRelFieldPicklist"
             />
 
@@ -144,7 +144,7 @@
                 name="tile1FilterCondition"
                 type="String"
                 label="Tile 1 Additional SOQL filter (optional)"
-                description="Optional SOQL fragment to AND into the WHERE clause for tile 1."
+                description="Optional SOQL fragment to AND into the WHERE clause for tile 1. Do not include the WHERE keyword. Examples: Status__c = 'Active', Status__c = 'Active' AND Region__c = 'West', StageName NOT IN ('Closed Won','Closed Lost')."
             />
             <property
                 name="tile1DecimalPlaces"
