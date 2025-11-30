@@ -2,6 +2,24 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
 
     private VisualEditor.DesignTimePageContext context;
 
+    // Safety rails so this picklist never blows CPU limits in very large orgs.
+    private static final Integer MAX_ROWS         = 500;
+    private static final Integer MAX_CPU_TIME_MS  = 9000;
+
+    private static Boolean shouldStop(VisualEditor.DynamicPickListRows rows) {
+        // rows may be null during early construction; treat that as 0 rows.
+        Integer size = (rows == null) ? 0 : rows.size();
+
+        if (size >= MAX_ROWS) {
+            return true;
+        }
+        // If we're already close to the CPU limit, stop adding more values.
+        if (Limits.getCpuTime() > MAX_CPU_TIME_MS) {
+            return true;
+        }
+        return false;
+    }
+
     global RollupAggregateFieldPicklist(VisualEditor.DesignTimePageContext context) {
         this.context = context;
     }
@@ -22,7 +40,7 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
 
             // 2) Fallback: if we still have nothing (edge cases), add aggregateable
             //    fields from the whole org so the admin at least has options.
-            if (rows.size() == 0) {
+            if (rows.size() == 0 && !shouldStop(rows)) {
                 addFieldsFromAllObjects(rows);
             }
         } catch (Exception e) {
@@ -50,6 +68,10 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
         String parentApiName,
         VisualEditor.DynamicPickListRows rows
     ) {
+        if (shouldStop(rows)) {
+            return;
+        }
+
         Map<String, Schema.SObjectType> allTypes = Schema.getGlobalDescribe();
         Schema.SObjectType parentType = allTypes.get(parentApiName);
         if (parentType == null) return;
@@ -58,6 +80,10 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
         Set<String> seenKeys = new Set<String>();
 
         for (Schema.ChildRelationship childRel : parentDescribe.getChildRelationships()) {
+            if (shouldStop(rows)) {
+                return;
+            }
+
             Schema.SObjectType childType = childRel.getChildSObject();
             if (childType == null) {
                 continue;
@@ -71,6 +97,10 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
             Map<String, Schema.SObjectField> fields = childDescribe.fields.getMap();
 
             for (Schema.SObjectField f : fields.values()) {
+                if (shouldStop(rows)) {
+                    return;
+                }
+
                 Schema.DescribeFieldResult fd = f.getDescribe();
                 if (!isAggregateFriendly(fd)) {
                     continue;
@@ -104,12 +134,20 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
 
                 // DataRow(label, value)
                 rows.addRow(new VisualEditor.DataRow(label, key));
+
+                if (shouldStop(rows)) {
+                    return;
+                }
             }
 
             // -------- 2) Fields on GRANDCHILD objects (new) --------
             // For each child of this child (i.e., grandchild of the parent),
             // surface aggregate-friendly fields as options too.
             for (Schema.ChildRelationship grandRel : childDescribe.getChildRelationships()) {
+                if (shouldStop(rows)) {
+                    return;
+                }
+
                 Schema.SObjectType grandType = grandRel.getChildSObject();
                 if (grandType == null) {
                     continue;
@@ -122,6 +160,10 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
                 Map<String, Schema.SObjectField> grandFields = grandDescribe.fields.getMap();
 
                 for (Schema.SObjectField gf : grandFields.values()) {
+                    if (shouldStop(rows)) {
+                        return;
+                    }
+
                     Schema.DescribeFieldResult gfd = gf.getDescribe();
                     if (!isAggregateFriendly(gfd)) {
                         continue;
@@ -156,6 +198,10 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
                     String label = coreLabel + searchTail;
 
                     rows.addRow(new VisualEditor.DataRow(label, key));
+
+                    if (shouldStop(rows)) {
+                        return;
+                    }
                 }
             }
         }
@@ -169,10 +215,18 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
      *   "Object Label • Field Label (FieldApi) | field label (fieldapi)".
      */
     private void addFieldsFromAllObjects(VisualEditor.DynamicPickListRows rows) {
+        if (shouldStop(rows)) {
+            return;
+        }
+
         Map<String, Schema.SObjectType> allTypes = Schema.getGlobalDescribe();
         Set<String> seenKeys = new Set<String>();
 
         for (Schema.SObjectType sType : allTypes.values()) {
+            if (shouldStop(rows)) {
+                return;
+            }
+
             Schema.DescribeSObjectResult sDescribe = sType.getDescribe();
 
             if (sDescribe.isCustomSetting() || sDescribe.isDeprecatedAndHidden()) {
@@ -185,6 +239,10 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
             Map<String, Schema.SObjectField> fields = sDescribe.fields.getMap();
 
             for (Schema.SObjectField f : fields.values()) {
+                if (shouldStop(rows)) {
+                    return;
+                }
+
                 Schema.DescribeFieldResult fd = f.getDescribe();
                 if (!isAggregateFriendly(fd)) {
                     continue;
@@ -212,6 +270,10 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
                 String label = coreLabel + searchTail;
 
                 rows.addRow(new VisualEditor.DataRow(label, key));
+
+                if (shouldStop(rows)) {
+                    return;
+                }
             }
         }
     }
