@@ -129,7 +129,7 @@
                 name="tile1AggregateFieldApiName"
                 type="String"
                 label="Tile 1 Aggregate Field"
-                description="Required for the first tile: field on the child (or grandchild) object to aggregate for tile 1."
+                description="Field on the child (or grandchild) object to aggregate for tile 1."
                 datasource="apex://RollupAggregateFieldPicklist"
             />
             <property
