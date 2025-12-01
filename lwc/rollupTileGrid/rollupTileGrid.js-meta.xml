@@ -25,7 +25,7 @@
                 type="Integer"
                 label="Number of columns"
                 description="Number of tile columns to display (1–5)."
-                default="3"
+                default="1"
             />
 
             <!-- Optional header above the grid -->
@@ -48,7 +48,6 @@
                 type="String"
                 label="Child Object"
                 description="Child object to roll up from for all tiles. Only objects with a lookup to this record type are shown."
-                required="true"
                 datasource="apex://RollupChildObjectPicklist"
             />
             <property
@@ -56,7 +55,6 @@
                 type="String"
                 label="Relationship Field (lookup on child)"
                 description="Lookup field on the child object that points back to this record (e.g. Contact.AccountId)."
-                required="true"
                 datasource="apex://RollupRelationshipFieldPicklist"
             />
 
@@ -82,7 +80,7 @@
                 label="Tile Size / Style"
                 description="Choose how compact each tile should appear."
                 datasource="Small,Medium,Large"
-                default="Small"
+                default="Medium"
             />
             <property
                 name="decimalPlaces"
@@ -129,7 +127,7 @@
                 name="tile1AggregateFieldApiName"
                 type="String"
                 label="Tile 1 Aggregate Field"
-                description="Field on the child object to aggregate for tile 1."
+                description="Required for the first tile: field on the child (or grandchild) object to aggregate for tile 1."
                 datasource="apex://RollupAggregateFieldPicklist"
             />
             <property
