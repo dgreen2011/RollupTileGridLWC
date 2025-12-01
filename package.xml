@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <!-- Apex classes -->
         <members>RollupService</members>
         <members>RollupChildObjectPicklist</members>
         <members>RollupRelationshipFieldPicklist</members>
@@ -9,10 +10,13 @@
         <members>RollupGrandchildRelFieldPicklist</members>
         <members>RollupServiceTest</members>
         <members>RollupDynamicPicklistsTest</members>
+        <members>RollupConfigController</members>
         <name>ApexClass</name>
     </types>
     <types>
+        <!-- LWC bundles -->
         <members>rollupTileGrid</members>
+        <members>rollupRelationshipConfig</members>
         <name>LightningComponentBundle</name>
     </types>
     <version>61.0</version>
