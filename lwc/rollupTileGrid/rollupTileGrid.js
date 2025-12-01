@@ -172,151 +172,126 @@ export default class RollupTileGrid extends LightningElement {
     @api tile1AggregateFieldApiName;
     @api tile1InitialAggregationType;
     @api tile1FilterCondition;
-    @api tile1DecimalPlaces;
 
     @api tile2Label;
     @api tile2AggregateFieldApiName;
     @api tile2InitialAggregationType;
     @api tile2FilterCondition;
-    @api tile2DecimalPlaces;
 
     @api tile3Label;
     @api tile3AggregateFieldApiName;
     @api tile3InitialAggregationType;
     @api tile3FilterCondition;
-    @api tile3DecimalPlaces;
 
     @api tile4Label;
     @api tile4AggregateFieldApiName;
     @api tile4InitialAggregationType;
     @api tile4FilterCondition;
-    @api tile4DecimalPlaces;
 
     @api tile5Label;
     @api tile5AggregateFieldApiName;
     @api tile5InitialAggregationType;
     @api tile5FilterCondition;
-    @api tile5DecimalPlaces;
 
     @api tile6Label;
     @api tile6AggregateFieldApiName;
     @api tile6InitialAggregationType;
     @api tile6FilterCondition;
-    @api tile6DecimalPlaces;
 
     @api tile7Label;
     @api tile7AggregateFieldApiName;
     @api tile7InitialAggregationType;
     @api tile7FilterCondition;
-    @api tile7DecimalPlaces;
 
     @api tile8Label;
     @api tile8AggregateFieldApiName;
     @api tile8InitialAggregationType;
     @api tile8FilterCondition;
-    @api tile8DecimalPlaces;
 
     @api tile9Label;
     @api tile9AggregateFieldApiName;
     @api tile9InitialAggregationType;
     @api tile9FilterCondition;
-    @api tile9DecimalPlaces;
 
     @api tile10Label;
     @api tile10AggregateFieldApiName;
     @api tile10InitialAggregationType;
     @api tile10FilterCondition;
-    @api tile10DecimalPlaces;
 
     @api tile11Label;
     @api tile11AggregateFieldApiName;
     @api tile11InitialAggregationType;
     @api tile11FilterCondition;
-    @api tile11DecimalPlaces;
 
     @api tile12Label;
     @api tile12AggregateFieldApiName;
     @api tile12InitialAggregationType;
     @api tile12FilterCondition;
-    @api tile12DecimalPlaces;
 
     @api tile13Label;
     @api tile13AggregateFieldApiName;
     @api tile13InitialAggregationType;
     @api tile13FilterCondition;
-    @api tile13DecimalPlaces;
 
     @api tile14Label;
     @api tile14AggregateFieldApiName;
     @api tile14InitialAggregationType;
     @api tile14FilterCondition;
-    @api tile14DecimalPlaces;
 
     @api tile15Label;
     @api tile15AggregateFieldApiName;
     @api tile15InitialAggregationType;
     @api tile15FilterCondition;
-    @api tile15DecimalPlaces;
 
     @api tile16Label;
     @api tile16AggregateFieldApiName;
     @api tile16InitialAggregationType;
     @api tile16FilterCondition;
-    @api tile16DecimalPlaces;
 
     @api tile17Label;
     @api tile17AggregateFieldApiName;
     @api tile17InitialAggregationType;
     @api tile17FilterCondition;
-    @api tile17DecimalPlaces;
 
     @api tile18Label;
     @api tile18AggregateFieldApiName;
     @api tile18InitialAggregationType;
     @api tile18FilterCondition;
-    @api tile18DecimalPlaces;
 
     @api tile19Label;
     @api tile19AggregateFieldApiName;
     @api tile19InitialAggregationType;
     @api tile19FilterCondition;
-    @api tile19DecimalPlaces;
 
     @api tile20Label;
     @api tile20AggregateFieldApiName;
     @api tile20InitialAggregationType;
     @api tile20FilterCondition;
-    @api tile20DecimalPlaces;
 
     @api tile21Label;
     @api tile21AggregateFieldApiName;
     @api tile21InitialAggregationType;
     @api tile21FilterCondition;
-    @api tile21DecimalPlaces;
 
     @api tile22Label;
     @api tile22AggregateFieldApiName;
     @api tile22InitialAggregationType;
     @api tile22FilterCondition;
-    @api tile22DecimalPlaces;
 
     @api tile23Label;
     @api tile23AggregateFieldApiName;
     @api tile23InitialAggregationType;
     @api tile23FilterCondition;
-    @api tile23DecimalPlaces;
 
     @api tile24Label;
     @api tile24AggregateFieldApiName;
     @api tile24InitialAggregationType;
     @api tile24FilterCondition;
-    @api tile24DecimalPlaces;
 
     @api tile25Label;
     @api tile25AggregateFieldApiName;
     @api tile25InitialAggregationType;
     @api tile25FilterCondition;
-    @api tile25DecimalPlaces;
 
     // Internal state: array of tile view models (config + runtime state).
     tiles = [];
@@ -675,17 +650,17 @@ export default class RollupTileGrid extends LightningElement {
         const aggregateFieldApiName = this[`tile${suffix}AggregateFieldApiName`];
         const rawAggregationType = this[`tile${suffix}InitialAggregationType`];
         const filterCondition = this[`tile${suffix}FilterCondition`];
-        const perTileDecimal = this[`tile${suffix}DecimalPlaces`];
 
         const initialAggregationType =
             this.normalizeAggregationType(rawAggregationType);
         const fieldCategory =
             inferFieldCategoryFromAggregationType(initialAggregationType);
 
+        // Use a single global decimal setting for all tiles.
         const decimalPlaces =
-            perTileDecimal !== null && perTileDecimal !== undefined
-                ? perTileDecimal
-                : this.decimalPlaces;
+            this.decimalPlaces !== null && this.decimalPlaces !== undefined
+                ? this.decimalPlaces
+                : 2;
 
         const baseTile = {
             index,
