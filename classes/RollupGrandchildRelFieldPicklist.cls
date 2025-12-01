@@ -42,6 +42,11 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
                 String childApi   = childDescribe.getName();
                 String childLabel = childDescribe.getLabel();
 
+                // Only include custom child objects, plus Account and Contact
+                if (!childDescribe.isCustom() && childApi != 'Account' && childApi != 'Contact') {
+                    continue;
+                }
+
                 // …look for its CHILDREN (grandchildren of the parent).
                 for (Schema.ChildRelationship grandRel : childDescribe.getChildRelationships()) {
                     Schema.SObjectType grandType = grandRel.getChildSObject();
@@ -52,6 +57,11 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
                     Schema.DescribeSObjectResult grandDescribe = grandType.getDescribe();
                     String grandApi   = grandDescribe.getName();
                     String grandLabel = grandDescribe.getLabel();
+
+                    // Only include custom grandchild objects, plus Account and Contact
+                    if (!grandDescribe.isCustom() && grandApi != 'Account' && grandApi != 'Contact') {
+                        continue;
+                    }
 
                     // Relationship field on the GRANDCHILD that points to the CHILD.
                     Schema.SObjectField relField = grandRel.getField();
