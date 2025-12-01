@@ -1,263 +1,199 @@
-global with sharing class RollupAggregateFieldPicklist extends VisualEditor.DynamicPickList {
+private VisualEditor.DesignTimePageContext context;
 
-    private VisualEditor.DesignTimePageContext context;
+// Safety rails so this picklist never blows CPU limits in very large orgs.
+private static final Integer MAX_ROWS         = 2000;
+private static final Integer MAX_CPU_TIME_MS  = 9000;
 
-    // Safety rails so this picklist never blows CPU limits in very large orgs.
-    private static final Integer MAX_ROWS         = 500;
-    private static final Integer MAX_CPU_TIME_MS  = 9000;
+private static Boolean shouldStop(VisualEditor.DynamicPickListRows rows) {
+    // rows may be null during early construction; treat that as 0 rows.
+    Integer size = (rows == null) ? 0 : rows.size();
 
-    private static Boolean shouldStop(VisualEditor.DynamicPickListRows rows) {
-        // rows may be null during early construction; treat that as 0 rows.
-        Integer size = (rows == null) ? 0 : rows.size();
-
-        if (size >= MAX_ROWS) {
-            return true;
-        }
-        // If we're already close to the CPU limit, stop adding more values.
-        if (Limits.getCpuTime() > MAX_CPU_TIME_MS) {
-            return true;
-        }
-        return false;
+    if (size >= MAX_ROWS) {
+        return true;
     }
-
-    global RollupAggregateFieldPicklist(VisualEditor.DesignTimePageContext context) {
-        this.context = context;
+    // If we're already close to the CPU limit, stop adding more values.
+    if (Limits.getCpuTime() > MAX_CPU_TIME_MS) {
+        return true;
     }
+    return false;
+}
 
-    // No default – admin must choose one, or leave blank for COUNT-only rollups
-    global override VisualEditor.DataRow getDefaultValue() {
-        return null;
-    }
+global RollupAggregateFieldPicklist(VisualEditor.DesignTimePageContext context) {
+    this.context = context;
+}
 
-    global override VisualEditor.DynamicPickListRows getValues() {
-        VisualEditor.DynamicPickListRows rows = new VisualEditor.DynamicPickListRows();
+// No default – admin must choose one, or leave blank for COUNT-only rollups
+global override VisualEditor.DataRow getDefaultValue() {
+    return null;
+}
 
-        try {
-            // 1) Prefer fields from child objects of the current record page object
-            if (context != null && !String.isBlank(context.entityName)) {
-                addFieldsForParent(context.entityName, rows);
-            }
+global override VisualEditor.DynamicPickListRows getValues() {
+    VisualEditor.DynamicPickListRows rows = new VisualEditor.DynamicPickListRows();
 
-            // 2) Fallback: if we still have nothing (edge cases), add aggregateable
-            //    fields from the whole org so the admin at least has options.
-            if (rows.size() == 0 && !shouldStop(rows)) {
-                addFieldsFromAllObjects(rows);
-            }
-        } catch (Exception e) {
-            // Swallow everything – never let App Builder or the record page fail
-            // because of this picklist.
+    try {
+        // 1) Prefer fields from child objects of the current record page object
+        if (context != null && !String.isBlank(context.entityName)) {
+            addFieldsForParent(context.entityName, rows);
         }
 
-        return rows;
+        // 2) Fallback: if we still have nothing (edge cases), add aggregateable
+        //    fields from the whole org so the admin at least has options.
+        if (rows.size() == 0 && !shouldStop(rows)) {
+            addFieldsFromAllObjects(rows);
+        }
+    } catch (Exception e) {
+        // Swallow everything – never let App Builder or the record page fail
+        // because of this picklist.
     }
 
-    /**
-     * Adds aggregate-friendly fields from all child (and grandchild) objects
-     * of the given parent.
-     *
-     * Value stored in the design attribute = "ObjectApi.FieldApi".
-     * Label shown in App Builder =
-     *   "Child Label • Field Label (FieldApi) | field label (fieldapi)"
-     *   OR
-     *   "Child Label • Grandchild Label • Field Label (FieldApi) | field label (fieldapi)".
-     *
-     * The lowercase tail is there specifically so App Builder’s
-     * case-sensitive search can match inputs like "aerial".
-     */
-    private void addFieldsForParent(
-        String parentApiName,
-        VisualEditor.DynamicPickListRows rows
-    ) {
+    return rows;
+}
+
+/**
+ * Adds aggregate-friendly fields from all child (and grandchild) objects
+ * of the given parent.
+ *
+ * Value stored in the design attribute = "ObjectApi.FieldApi".
+ * Label shown in App Builder =
+ *   "Child Label • Field Label (FieldApi) | field label (fieldapi)"
+ *   OR
+ *   "Child Label • Grandchild Label • Field Label (FieldApi) | field label (fieldapi)".
+ *
+ * The lowercase tail is there specifically so App Builder’s
+ * case-sensitive search can match inputs like "aerial".
+ */
+private void addFieldsForParent(
+    String parentApiName,
+    VisualEditor.DynamicPickListRows rows
+) {
+    if (shouldStop(rows)) {
+        return;
+    }
+
+    Map<String, Schema.SObjectType> allTypes = Schema.getGlobalDescribe();
+    Schema.SObjectType parentType = allTypes.get(parentApiName);
+    if (parentType == null) return;
+
+    Schema.DescribeSObjectResult parentDescribe = parentType.getDescribe();
+    Set<String> seenKeys = new Set<String>();
+
+    for (Schema.ChildRelationship childRel : parentDescribe.getChildRelationships()) {
         if (shouldStop(rows)) {
             return;
         }
 
-        Map<String, Schema.SObjectType> allTypes = Schema.getGlobalDescribe();
-        Schema.SObjectType parentType = allTypes.get(parentApiName);
-        if (parentType == null) return;
+        Schema.SObjectType childType = childRel.getChildSObject();
+        if (childType == null) {
+            continue;
+        }
 
-        Schema.DescribeSObjectResult parentDescribe = parentType.getDescribe();
-        Set<String> seenKeys = new Set<String>();
+        Schema.DescribeSObjectResult childDescribe = childType.getDescribe();
+        String childApi   = childDescribe.getName();
+        String childLabel = childDescribe.getLabel();
 
-        for (Schema.ChildRelationship childRel : parentDescribe.getChildRelationships()) {
+        // Only include custom objects, plus Account and Contact
+        if (!childDescribe.isCustom() && childApi != 'Account' && childApi != 'Contact') {
+            continue;
+        }
+
+        // -------- 1) Fields on the CHILD object (existing behaviour) --------
+        Map<String, Schema.SObjectField> fields = childDescribe.fields.getMap();
+
+        for (Schema.SObjectField f : fields.values()) {
             if (shouldStop(rows)) {
                 return;
             }
 
-            Schema.SObjectType childType = childRel.getChildSObject();
-            if (childType == null) {
+            Schema.DescribeFieldResult fd = f.getDescribe();
+            if (!isAggregateFriendly(fd)) {
                 continue;
             }
 
-            Schema.DescribeSObjectResult childDescribe = childType.getDescribe();
-            String childApi   = childDescribe.getName();
-            String childLabel = childDescribe.getLabel();
+            String fieldApi   = fd.getName();
+            String fieldLabel = fd.getLabel();
 
-            // -------- 1) Fields on the CHILD object (existing behaviour) --------
-            Map<String, Schema.SObjectField> fields = childDescribe.fields.getMap();
+            // Value used later by RollupService (normalised down to just the field).
+            String key = childApi + '.' + fieldApi;
 
-            for (Schema.SObjectField f : fields.values()) {
+            // Don’t show duplicates for the same object+field combination
+            if (!seenKeys.add(key)) {
+                continue;
+            }
+
+            // Core, nicely formatted label
+            String coreLabel =
+                childLabel +
+                ' • ' +
+                fieldLabel +
+                ' (' + fieldApi + ')';
+
+            // Lowercase tail for case-sensitive search to match things like "aerial"
+            String searchTail =
+                ' | ' +
+                fieldLabel.toLowerCase() +
+                ' (' + fieldApi.toLowerCase() + ')';
+
+            String label = coreLabel + searchTail;
+
+            // DataRow(label, value)
+            rows.addRow(new VisualEditor.DataRow(label, key));
+
+            if (shouldStop(rows)) {
+                return;
+            }
+        }
+
+        // -------- 2) Fields on GRANDCHILD objects (new) --------
+        // For each child of this child (i.e., grandchild of the parent),
+        // surface aggregate-friendly fields as options too.
+        for (Schema.ChildRelationship grandRel : childDescribe.getChildRelationships()) {
+            if (shouldStop(rows)) {
+                return;
+            }
+
+            Schema.SObjectType grandType = grandRel.getChildSObject();
+            if (grandType == null) {
+                continue;
+            }
+
+            Schema.DescribeSObjectResult grandDescribe = grandType.getDescribe();
+            String grandApi   = grandDescribe.getName();
+            String grandLabel = grandDescribe.getLabel();
+
+            // Only include custom objects, plus Account and Contact
+            if (!grandDescribe.isCustom() && grandApi != 'Account' && grandApi != 'Contact') {
+                continue;
+            }
+
+            Map<String, Schema.SObjectField> grandFields = grandDescribe.fields.getMap();
+
+            for (Schema.SObjectField gf : grandFields.values()) {
                 if (shouldStop(rows)) {
                     return;
                 }
 
-                Schema.DescribeFieldResult fd = f.getDescribe();
-                if (!isAggregateFriendly(fd)) {
+                Schema.DescribeFieldResult gfd = gf.getDescribe();
+                if (!isAggregateFriendly(gfd)) {
                     continue;
                 }
 
-                String fieldApi   = fd.getName();
-                String fieldLabel = fd.getLabel();
+                String fieldApi   = gfd.getName();
+                String fieldLabel = gfd.getLabel();
 
-                // Value used later by RollupService (normalised down to just the field).
-                String key = childApi + '.' + fieldApi;
+                // Value used later by RollupService – in grandchild mode
+                // we normalise this down to just the field API name.
+                String key = grandApi + '.' + fieldApi;
 
-                // Don’t show duplicates for the same object+field combination
                 if (!seenKeys.add(key)) {
                     continue;
                 }
 
-                // Core, nicely formatted label
+                // Label pattern:
+                // "Child Label • Grandchild Label • Field Label (FieldApi)"
                 String coreLabel =
                     childLabel +
                     ' • ' +
-                    fieldLabel +
-                    ' (' + fieldApi + ')';
-
-                // Lowercase tail for case-sensitive search to match things like "aerial"
-                String searchTail =
-                    ' | ' +
-                    fieldLabel.toLowerCase() +
-                    ' (' + fieldApi.toLowerCase() + ')';
-
-                String label = coreLabel + searchTail;
-
-                // DataRow(label, value)
-                rows.addRow(new VisualEditor.DataRow(label, key));
-
-                if (shouldStop(rows)) {
-                    return;
-                }
-            }
-
-            // -------- 2) Fields on GRANDCHILD objects (new) --------
-            // For each child of this child (i.e., grandchild of the parent),
-            // surface aggregate-friendly fields as options too.
-            for (Schema.ChildRelationship grandRel : childDescribe.getChildRelationships()) {
-                if (shouldStop(rows)) {
-                    return;
-                }
-
-                Schema.SObjectType grandType = grandRel.getChildSObject();
-                if (grandType == null) {
-                    continue;
-                }
-
-                Schema.DescribeSObjectResult grandDescribe = grandType.getDescribe();
-                String grandApi   = grandDescribe.getName();
-                String grandLabel = grandDescribe.getLabel();
-
-                Map<String, Schema.SObjectField> grandFields = grandDescribe.fields.getMap();
-
-                for (Schema.SObjectField gf : grandFields.values()) {
-                    if (shouldStop(rows)) {
-                        return;
-                    }
-
-                    Schema.DescribeFieldResult gfd = gf.getDescribe();
-                    if (!isAggregateFriendly(gfd)) {
-                        continue;
-                    }
-
-                    String fieldApi   = gfd.getName();
-                    String fieldLabel = gfd.getLabel();
-
-                    // Value used later by RollupService – in grandchild mode
-                    // we normalise this down to just the field API name.
-                    String key = grandApi + '.' + fieldApi;
-
-                    if (!seenKeys.add(key)) {
-                        continue;
-                    }
-
-                    // Label pattern:
-                    // "Child Label • Grandchild Label • Field Label (FieldApi)"
-                    String coreLabel =
-                        childLabel +
-                        ' • ' +
-                        grandLabel +
-                        ' • ' +
-                        fieldLabel +
-                        ' (' + fieldApi + ')';
-
-                    String searchTail =
-                        ' | ' +
-                        fieldLabel.toLowerCase() +
-                        ' (' + fieldApi.toLowerCase() + ')';
-
-                    String label = coreLabel + searchTail;
-
-                    rows.addRow(new VisualEditor.DataRow(label, key));
-
-                    if (shouldStop(rows)) {
-                        return;
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Fallback: scan all objects in the org and add aggregate-friendly fields.
-     *
-     * Value stored in the design attribute = "ObjectApi.FieldApi".
-     * Label shown in App Builder =
-     *   "Object Label • Field Label (FieldApi) | field label (fieldapi)".
-     */
-    private void addFieldsFromAllObjects(VisualEditor.DynamicPickListRows rows) {
-        if (shouldStop(rows)) {
-            return;
-        }
-
-        Map<String, Schema.SObjectType> allTypes = Schema.getGlobalDescribe();
-        Set<String> seenKeys = new Set<String>();
-
-        for (Schema.SObjectType sType : allTypes.values()) {
-            if (shouldStop(rows)) {
-                return;
-            }
-
-            Schema.DescribeSObjectResult sDescribe = sType.getDescribe();
-
-            if (sDescribe.isCustomSetting() || sDescribe.isDeprecatedAndHidden()) {
-                continue;
-            }
-
-            String objectApi   = sDescribe.getName();
-            String objectLabel = sDescribe.getLabel();
-
-            Map<String, Schema.SObjectField> fields = sDescribe.fields.getMap();
-
-            for (Schema.SObjectField f : fields.values()) {
-                if (shouldStop(rows)) {
-                    return;
-                }
-
-                Schema.DescribeFieldResult fd = f.getDescribe();
-                if (!isAggregateFriendly(fd)) {
-                    continue;
-                }
-
-                String fieldApi   = fd.getName();
-                String fieldLabel = fd.getLabel();
-
-                String key = objectApi + '.' + fieldApi;
-                if (!seenKeys.add(key)) {
-                    continue;
-                }
-
-                String coreLabel =
-                    objectLabel +
+                    grandLabel +
                     ' • ' +
                     fieldLabel +
                     ' (' + fieldApi + ')';
@@ -277,26 +213,103 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
             }
         }
     }
+}
 
-    /**
-     * Decide which field types make sense for SUM/AVG/COUNT/CONCATENATE/FIRST/LAST.
-     */
-    private static Boolean isAggregateFriendly(Schema.DescribeFieldResult fd) {
-        Schema.DisplayType t = fd.getType();
-        return
-            t == Schema.DisplayType.Currency ||
-            t == Schema.DisplayType.Double   ||
-            t == Schema.DisplayType.Integer  ||
-            t == Schema.DisplayType.Long     ||
-            t == Schema.DisplayType.Percent  ||
-            t == Schema.DisplayType.Date     ||
-            t == Schema.DisplayType.DateTime ||
-            t == Schema.DisplayType.String;
+/**
+ * Fallback: scan all objects in the org and add aggregate-friendly fields.
+ *
+ * Value stored in the design attribute = "ObjectApi.FieldApi".
+ * Label shown in App Builder =
+ *   "Object Label • Field Label (FieldApi) | field label (fieldapi)".
+ */
+private void addFieldsFromAllObjects(VisualEditor.DynamicPickListRows rows) {
+    if (shouldStop(rows)) {
+        return;
     }
 
-    // Prevents Salesforce from re-calling getValues() during validation
-    // and avoids weird Community/App Builder bugs.
-    global override Boolean isValid(Object attributeValue) {
-        return true;
+    Map<String, Schema.SObjectType> allTypes = Schema.getGlobalDescribe();
+    Set<String> seenKeys = new Set<String>();
+
+    for (Schema.SObjectType sType : allTypes.values()) {
+        if (shouldStop(rows)) {
+            return;
+        }
+
+        Schema.DescribeSObjectResult sDescribe = sType.getDescribe();
+
+        if (sDescribe.isCustomSetting() || sDescribe.isDeprecatedAndHidden()) {
+            continue;
+        }
+
+        String objectApi   = sDescribe.getName();
+
+        // Only include custom objects, plus Account and Contact
+        if (!sDescribe.isCustom() && objectApi != 'Account' && objectApi != 'Contact') {
+            continue;
+        }
+
+        String objectLabel = sDescribe.getLabel();
+
+        Map<String, Schema.SObjectField> fields = sDescribe.fields.getMap();
+
+        for (Schema.SObjectField f : fields.values()) {
+            if (shouldStop(rows)) {
+                return;
+            }
+
+            Schema.DescribeFieldResult fd = f.getDescribe();
+            if (!isAggregateFriendly(fd)) {
+                continue;
+            }
+
+            String fieldApi   = fd.getName();
+            String fieldLabel = fd.getLabel();
+
+            String key = objectApi + '.' + fieldApi;
+            if (!seenKeys.add(key)) {
+                continue;
+            }
+
+            String coreLabel =
+                objectLabel +
+                ' • ' +
+                fieldLabel +
+                ' (' + fieldApi + ')';
+
+            String searchTail =
+                ' | ' +
+                fieldLabel.toLowerCase() +
+                ' (' + fieldApi.toLowerCase() + ')';
+
+            String label = coreLabel + searchTail;
+
+            rows.addRow(new VisualEditor.DataRow(label, key));
+
+            if (shouldStop(rows)) {
+                return;
+            }
+        }
     }
+}
+
+/**
+ * Decide which field types make sense for SUM/AVG/COUNT/CONCATENATE/FIRST/LAST.
+ */
+private static Boolean isAggregateFriendly(Schema.DescribeFieldResult fd) {
+    Schema.DisplayType t = fd.getType();
+    return
+        t == Schema.DisplayType.Currency ||
+        t == Schema.DisplayType.Double   ||
+        t == Schema.DisplayType.Integer  ||
+        t == Schema.DisplayType.Long     ||
+        t == Schema.DisplayType.Percent  ||
+        t == Schema.DisplayType.Date     ||
+        t == Schema.DisplayType.DateTime ||
+        t == Schema.DisplayType.String;
+}
+
+// Prevents Salesforce from re-calling getValues() during validation
+// and avoids weird Community/App Builder bugs.
+global override Boolean isValid(Object attributeValue) {
+    return true;
 }
