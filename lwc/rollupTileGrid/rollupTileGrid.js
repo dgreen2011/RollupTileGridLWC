@@ -142,7 +142,7 @@ export default class RollupTileGrid extends LightningElement {
 
     // Layout
     @api rows = 1;
-    @api columns = 3;
+    @api columns = 1;
 
     // Optional header shown above the grid
     @api headerText;
@@ -157,7 +157,7 @@ export default class RollupTileGrid extends LightningElement {
     @api grandchildObjectApiName;
     @api grandchildRelationshipFieldApiName;
 
-    @api styleVariant = 'Small';
+    @api styleVariant = 'Medium';
     @api allowUserToChangeAggregation = false; // kept for compatibility
     @api decimalPlaces = 2;
 
@@ -397,15 +397,21 @@ export default class RollupTileGrid extends LightningElement {
 
     // Catch unexpected errors so they don't break the entire record page.
     errorCallback(error, stack) {
-        let msg =
-            'Unexpected error while rendering these rollup tiles. ' +
-            'Please check the configuration and try again.';
+        // If the configuration itself is incomplete, surface that directly so
+        // the message is more descriptive than the generic "Invalid component".
+        let msg = this.globalConfigError;
 
-        if (error) {
-            if (error.body && error.body.message) {
-                msg += ' ' + error.body.message;
-            } else if (error.message) {
-                msg += ' ' + error.message;
+        if (!msg) {
+            msg =
+                'Unexpected error while rendering these rollup tiles. ' +
+                'Please check the configuration and try again.';
+
+            if (error) {
+                if (error.body && error.body.message) {
+                    msg += ' ' + error.body.message;
+                } else if (error.message) {
+                    msg += ' ' + error.message;
+                }
             }
         }
 
@@ -460,7 +466,7 @@ export default class RollupTileGrid extends LightningElement {
         let variant =
             this.styleVariant && typeof this.styleVariant === 'string'
                 ? this.styleVariant.toLowerCase()
-                : 'small';
+                : 'medium';
 
         // Map legacy values to new names
         if (variant === 'compact') {
@@ -470,7 +476,7 @@ export default class RollupTileGrid extends LightningElement {
         }
 
         if (variant !== 'small' && variant !== 'medium' && variant !== 'large') {
-            variant = 'small';
+            variant = 'medium';
         }
 
         return variant;
@@ -573,7 +579,7 @@ export default class RollupTileGrid extends LightningElement {
             missing.push('Child Object');
         }
         if (!this.relationshipFieldApiName) {
-            missing.push('Relationship Field');
+            missing.push('Relationship Field (lookup on child)');
         }
 
         // Only require grandchild properties if the admin has started to configure them.
@@ -592,18 +598,14 @@ export default class RollupTileGrid extends LightningElement {
             }
         }
 
-        if (!this.recordId) {
-            missing.push('recordId');
-        }
-
         if (!missing.length) {
             return null;
         }
 
         return (
-            'Rollup tile is not fully configured. Missing: ' +
+            'Rollup Tile Grid is not fully configured yet. Missing: ' +
             missing.join(', ') +
-            '. Open the Lightning App Builder and fill in these properties.'
+            '. In the Lightning App Builder, set these properties (and at minimum configure "Tile 1 Aggregate Field") before using this component.'
         );
     }
 
@@ -956,6 +958,27 @@ export default class RollupTileGrid extends LightningElement {
 
         const currentTile = this.tiles.find((t) => t.index === index);
         if (!currentTile) {
+            return;
+        }
+
+        // If this tile doesn't have an aggregate field configured, surface a
+        // clear configuration message instead of letting Apex error out.
+        if (!currentTile.aggregateFieldApiName) {
+            const configMsg = `Tile ${index} is not fully configured. Set "Tile ${index} Aggregate Field" in the Lightning App Builder.`;
+            this.tiles = this.tiles.map((tile) =>
+                tile.index === index
+                    ? this.recomputeTileDerivedFields({
+                          ...tile,
+                          isLoading: false,
+                          error: configMsg,
+                          value: null,
+                          recordCount: null,
+                          isCurrency: false,
+                          isPercent: false,
+                          fieldLabel: null
+                      })
+                    : tile
+            );
             return;
         }
 
