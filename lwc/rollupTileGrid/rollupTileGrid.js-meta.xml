@@ -15,7 +15,7 @@
             <!-- Layout controls -->
             <property
                 name="rows"
-                type="Integer"
+                type="String"
                 label="Number of rows"
                 description="Number of tile rows to display (1–5)."
                 default="1"
@@ -23,7 +23,7 @@
             />
             <property
                 name="columns"
-                type="Integer"
+                type="String"
                 label="Number of columns"
                 description="Number of tile columns to display (1–5)."
                 default="1"
