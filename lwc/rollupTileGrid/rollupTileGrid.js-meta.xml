@@ -86,7 +86,7 @@
                 name="decimalPlaces"
                 type="Integer"
                 label="Default decimal places for numeric values"
-                description="Maximum number of decimal places to display for numeric aggregations (per-tile overrides are available)."
+                description="Maximum number of decimal places to display for numeric aggregations. Whole numbers are shown without decimal places."
                 default="2"
             />
 
@@ -144,12 +144,6 @@
                 label="Tile 1 Additional SOQL filter (optional)"
                 description="Optional SOQL fragment to AND into the WHERE clause for tile 1. Do not include the WHERE keyword. Examples: Status__c = 'Active', Status__c = 'Active' AND Region__c = 'West', StageName NOT IN ('Closed Won','Closed Lost')."
             />
-            <property
-                name="tile1DecimalPlaces"
-                type="Integer"
-                label="Tile 1 decimal places (optional)"
-                description="Maximum number of decimal places for tile 1. Leave blank to use the default."
-            />
 
             <!-- Tile 2 -->
             <property name="tile2Label" type="String" label="Tile 2 Label" />
@@ -170,11 +164,6 @@
                 name="tile2FilterCondition"
                 type="String"
                 label="Tile 2 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile2DecimalPlaces"
-                type="Integer"
-                label="Tile 2 decimal places (optional)"
             />
 
             <!-- Tile 3 -->
@@ -197,11 +186,6 @@
                 type="String"
                 label="Tile 3 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile3DecimalPlaces"
-                type="Integer"
-                label="Tile 3 decimal places (optional)"
-            />
 
             <!-- Tile 4 -->
             <property name="tile4Label" type="String" label="Tile 4 Label" />
@@ -222,11 +206,6 @@
                 name="tile4FilterCondition"
                 type="String"
                 label="Tile 4 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile4DecimalPlaces"
-                type="Integer"
-                label="Tile 4 decimal places (optional)"
             />
 
             <!-- Tile 5 -->
@@ -249,11 +228,6 @@
                 type="String"
                 label="Tile 5 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile5DecimalPlaces"
-                type="Integer"
-                label="Tile 5 decimal places (optional)"
-            />
 
             <!-- Tile 6 -->
             <property name="tile6Label" type="String" label="Tile 6 Label" />
@@ -274,11 +248,6 @@
                 name="tile6FilterCondition"
                 type="String"
                 label="Tile 6 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile6DecimalPlaces"
-                type="Integer"
-                label="Tile 6 decimal places (optional)"
             />
 
             <!-- Tile 7 -->
@@ -301,11 +270,6 @@
                 type="String"
                 label="Tile 7 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile7DecimalPlaces"
-                type="Integer"
-                label="Tile 7 decimal places (optional)"
-            />
 
             <!-- Tile 8 -->
             <property name="tile8Label" type="String" label="Tile 8 Label" />
@@ -326,11 +290,6 @@
                 name="tile8FilterCondition"
                 type="String"
                 label="Tile 8 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile8DecimalPlaces"
-                type="Integer"
-                label="Tile 8 decimal places (optional)"
             />
 
             <!-- Tile 9 -->
@@ -353,11 +312,6 @@
                 type="String"
                 label="Tile 9 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile9DecimalPlaces"
-                type="Integer"
-                label="Tile 9 decimal places (optional)"
-            />
 
             <!-- Tile 10 -->
             <property name="tile10Label" type="String" label="Tile 10 Label" />
@@ -378,11 +332,6 @@
                 name="tile10FilterCondition"
                 type="String"
                 label="Tile 10 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile10DecimalPlaces"
-                type="Integer"
-                label="Tile 10 decimal places (optional)"
             />
 
             <!-- Tile 11 -->
@@ -405,11 +354,6 @@
                 type="String"
                 label="Tile 11 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile11DecimalPlaces"
-                type="Integer"
-                label="Tile 11 decimal places (optional)"
-            />
 
             <!-- Tile 12 -->
             <property name="tile12Label" type="String" label="Tile 12 Label" />
@@ -430,11 +374,6 @@
                 name="tile12FilterCondition"
                 type="String"
                 label="Tile 12 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile12DecimalPlaces"
-                type="Integer"
-                label="Tile 12 decimal places (optional)"
             />
 
             <!-- Tile 13 -->
@@ -457,11 +396,6 @@
                 type="String"
                 label="Tile 13 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile13DecimalPlaces"
-                type="Integer"
-                label="Tile 13 decimal places (optional)"
-            />
 
             <!-- Tile 14 -->
             <property name="tile14Label" type="String" label="Tile 14 Label" />
@@ -482,11 +416,6 @@
                 name="tile14FilterCondition"
                 type="String"
                 label="Tile 14 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile14DecimalPlaces"
-                type="Integer"
-                label="Tile 14 decimal places (optional)"
             />
 
             <!-- Tile 15 -->
@@ -509,11 +438,6 @@
                 type="String"
                 label="Tile 15 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile15DecimalPlaces"
-                type="Integer"
-                label="Tile 15 decimal places (optional)"
-            />
 
             <!-- Tile 16 -->
             <property name="tile16Label" type="String" label="Tile 16 Label" />
@@ -534,11 +458,6 @@
                 name="tile16FilterCondition"
                 type="String"
                 label="Tile 16 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile16DecimalPlaces"
-                type="Integer"
-                label="Tile 16 decimal places (optional)"
             />
 
             <!-- Tile 17 -->
@@ -561,11 +480,6 @@
                 type="String"
                 label="Tile 17 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile17DecimalPlaces"
-                type="Integer"
-                label="Tile 17 decimal places (optional)"
-            />
 
             <!-- Tile 18 -->
             <property name="tile18Label" type="String" label="Tile 18 Label" />
@@ -586,11 +500,6 @@
                 name="tile18FilterCondition"
                 type="String"
                 label="Tile 18 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile18DecimalPlaces"
-                type="Integer"
-                label="Tile 18 decimal places (optional)"
             />
 
             <!-- Tile 19 -->
@@ -613,11 +522,6 @@
                 type="String"
                 label="Tile 19 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile19DecimalPlaces"
-                type="Integer"
-                label="Tile 19 decimal places (optional)"
-            />
 
             <!-- Tile 20 -->
             <property name="tile20Label" type="String" label="Tile 20 Label" />
@@ -638,11 +542,6 @@
                 name="tile20FilterCondition"
                 type="String"
                 label="Tile 20 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile20DecimalPlaces"
-                type="Integer"
-                label="Tile 20 decimal places (optional)"
             />
 
             <!-- Tile 21 -->
@@ -665,11 +564,6 @@
                 type="String"
                 label="Tile 21 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile21DecimalPlaces"
-                type="Integer"
-                label="Tile 21 decimal places (optional)"
-            />
 
             <!-- Tile 22 -->
             <property name="tile22Label" type="String" label="Tile 22 Label" />
@@ -690,11 +584,6 @@
                 name="tile22FilterCondition"
                 type="String"
                 label="Tile 22 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile22DecimalPlaces"
-                type="Integer"
-                label="Tile 22 decimal places (optional)"
             />
 
             <!-- Tile 23 -->
@@ -717,11 +606,6 @@
                 type="String"
                 label="Tile 23 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile23DecimalPlaces"
-                type="Integer"
-                label="Tile 23 decimal places (optional)"
-            />
 
             <!-- Tile 24 -->
             <property name="tile24Label" type="String" label="Tile 24 Label" />
@@ -743,11 +627,6 @@
                 type="String"
                 label="Tile 24 Additional SOQL filter (optional)"
             />
-            <property
-                name="tile24DecimalPlaces"
-                type="Integer"
-                label="Tile 24 decimal places (optional)"
-            />
 
             <!-- Tile 25 -->
             <property name="tile25Label" type="String" label="Tile 25 Label" />
@@ -768,11 +647,6 @@
                 name="tile25FilterCondition"
                 type="String"
                 label="Tile 25 Additional SOQL filter (optional)"
-            />
-            <property
-                name="tile25DecimalPlaces"
-                type="Integer"
-                label="Tile 25 decimal places (optional)"
             />
         </targetConfig>
     </targetConfigs>
