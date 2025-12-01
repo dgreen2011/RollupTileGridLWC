@@ -87,8 +87,8 @@
             <property
                 name="decimalPlaces"
                 type="Integer"
-                label="Default decimal places for numeric values"
-                description="Maximum number of decimal places to display for numeric aggregations. Whole numbers are shown without decimal places."
+                label="Max decimal places for numeric values"
+                description="Maximum number of decimal places to display for numeric aggregations. Whole numbers are shown without decimals. Examples: if set to 2, 110.135 becomes 110.14 and 93 becomes 93; if set to 1, 110.135 becomes 110.1; if set to 0, 110.135 becomes 110."
                 default="2"
             />
 
@@ -97,7 +97,7 @@
                 name="showRefreshButton"
                 type="Boolean"
                 label="Show Refresh button"
-                description="Check to show a single Refresh button for all tiles in this grid. Clear to hide it entirely."
+                description="Check to show a Refresh button for all tiles in this grid."
                 default="true"
             />
 
@@ -105,7 +105,7 @@
                 name="allowUserToChangeAggregation"
                 type="Boolean"
                 label="Allow users to change aggregation type at runtime"
-                description="Check to show a gear icon on each tile so users can change the aggregation type at runtime."
+                description="Check to show a gear icon on each tile so users can change the aggregation type at runtime (for example, switch a tile from Sum to Average without editing the page)."
                 default="true"
             />
 
