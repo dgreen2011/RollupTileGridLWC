@@ -19,6 +19,7 @@
                 label="Number of rows"
                 description="Number of tile rows to display (1–5)."
                 default="1"
+                datasource="1,2,3,4,5"
             />
             <property
                 name="columns"
@@ -26,6 +27,7 @@
                 label="Number of columns"
                 description="Number of tile columns to display (1–5)."
                 default="1"
+                datasource="1,2,3,4,5"
             />
 
             <!-- Optional header above the grid -->
