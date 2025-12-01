@@ -40,6 +40,12 @@ global with sharing class RollupChildObjectPicklist extends VisualEditor.Dynamic
 
                 Schema.DescribeSObjectResult childDescribe = childType.getDescribe();
                 String apiName = childDescribe.getName();
+
+                // Only include custom objects, plus Account and Contact
+                if (!childDescribe.isCustom() && apiName != 'Account' && apiName != 'Contact') {
+                    continue;
+                }
+
                 if (String.isBlank(apiName) || !seenApiNames.add(apiName)) {
                     continue;
                 }
