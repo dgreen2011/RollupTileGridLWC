@@ -38,8 +38,13 @@ global with sharing class RollupRelationshipFieldPicklist extends VisualEditor.D
                 }
 
                 Schema.DescribeSObjectResult childDescribe = childType.getDescribe();
-                String childApi = childDescribe.getName();
+                String childApi   = childDescribe.getName();
                 String childLabel = childDescribe.getLabel();
+
+                // Only include custom child objects, plus Account and Contact
+                if (!childDescribe.isCustom() && childApi != 'Account' && childApi != 'Contact') {
+                    continue;
+                }
 
                 Schema.SObjectField relField = childRel.getField();
                 if (relField == null) {
@@ -66,7 +71,7 @@ global with sharing class RollupRelationshipFieldPicklist extends VisualEditor.D
                     continue;
                 }
 
-                String fieldApi = fieldDescribe.getName();
+                String fieldApi   = fieldDescribe.getName();
                 String fieldLabel = fieldDescribe.getLabel();
 
                 // Value stored in the design attribute; used later by RollupService
