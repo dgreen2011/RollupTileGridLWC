@@ -151,6 +151,9 @@ function getAllowedAggregationsForCategory(category) {
     return null;
 }
 
+// Unique id generator for each grid instance (used for cross-instance coordination).
+let NEXT_INSTANCE_ID = 1;
+
 export default class RollupTileGrid extends LightningElement {
     @api recordId;
 
@@ -322,9 +325,20 @@ export default class RollupTileGrid extends LightningElement {
     // Bound handler for global refresh events across multiple grids.
     _globalRefreshHandler;
 
+    // Bound handler for global "close menus" events across multiple grids.
+    _globalCloseMenusHandler;
+
+    // Unique id for this component instance (for cross-instance coordination).
+    _instanceId;
+
     // ------------- Lifecycle -------------
 
     connectedCallback() {
+        // Assign a unique id for this grid instance.
+        if (!this._instanceId) {
+            this._instanceId = `rtg_${NEXT_INSTANCE_ID++}`;
+        }
+
         // Build the tiles from the design-time attributes.
         this.initializeTilesFromConfig();
 
@@ -338,6 +352,14 @@ export default class RollupTileGrid extends LightningElement {
             window.addEventListener(
                 'st_rollup_tile_grid_refresh',
                 this._globalRefreshHandler
+            );
+
+            // Listen for global "close menus" events fired by other grids.
+            this._globalCloseMenusHandler =
+                this.handleGlobalCloseMenus.bind(this);
+            window.addEventListener(
+                'st_rollup_tile_grid_close_menus',
+                this._globalCloseMenusHandler
             );
         }
     }
@@ -381,6 +403,15 @@ export default class RollupTileGrid extends LightningElement {
                 this._globalRefreshHandler
             );
             this._globalRefreshHandler = null;
+        }
+
+        // Remove global "close menus" listener.
+        if (this._globalCloseMenusHandler && typeof window !== 'undefined') {
+            window.removeEventListener(
+                'st_rollup_tile_grid_close_menus',
+                this._globalCloseMenusHandler
+            );
+            this._globalCloseMenusHandler = null;
         }
     }
 
@@ -1208,7 +1239,26 @@ export default class RollupTileGrid extends LightningElement {
     }
 
     /**
-     * Close all aggregation menus (used by outside-click + root click).
+     * Handler for global "close menus" events so that opening a gear dropdown
+     * in one grid closes all open dropdowns in other grids on the page.
+     */
+    handleGlobalCloseMenus(event) {
+        if (!event || !event.detail) {
+            return;
+        }
+
+        const { instanceId } = event.detail;
+
+        // Ignore events we originated ourselves.
+        if (!instanceId || instanceId === this._instanceId) {
+            return;
+        }
+
+        this.closeAllAggregationMenus();
+    }
+
+    /**
+     * Close all aggregation menus (used by outside-click + root click + global events).
      */
     closeAllAggregationMenus() {
         let anyOpen = false;
@@ -1236,6 +1286,20 @@ export default class RollupTileGrid extends LightningElement {
         const index = Number(event.currentTarget.dataset.index);
         if (!index) {
             return;
+        }
+
+        // Before toggling this tile's menu, tell all *other* grids on the page
+        // to close any open aggregation menus.
+        if (typeof window !== 'undefined') {
+            const closeEvt = new CustomEvent('st_rollup_tile_grid_close_menus', {
+                bubbles: false,
+                composed: false,
+                detail: {
+                    instanceId: this._instanceId,
+                    tileIndex: index
+                }
+            });
+            window.dispatchEvent(closeEvt);
         }
 
         this.tiles = this.tiles.map((tile) => {
