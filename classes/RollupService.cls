@@ -211,7 +211,7 @@ public with sharing class RollupService {
                             result.isPercent  = (t == Schema.DisplayType.Percent);
                             result.isDate     =
                                 (t == Schema.DisplayType.Date ||
-                                 t == Schema.DisplayType.DateTime);
+                                 t == Schema.DisplayType.Datetime);
                             result.fieldLabel = aggFieldDescribe.getLabel();
                         }
                     } catch (Exception ignoreTypeEx) {
@@ -374,7 +374,8 @@ public with sharing class RollupService {
 
                     if (rawValue == null) {
                         result.value = null;
-                    } else if (result.isDate == true && (aggType == 'MIN' || aggType == 'MAX')) {
+                    } else if (result.isDate == true &&
+                               (aggType == 'MIN' || aggType == 'MAX')) {
                         result.value = formatDateForClient(rawValue);
                     } else {
                         result.value = String.valueOf(rawValue);
@@ -388,7 +389,7 @@ public with sharing class RollupService {
             }
 
             // ==========================================================
-            // EXISTING CHILD-ONLY MODE (unchanged shape)
+            // EXISTING CHILD-ONLY MODE (unchanged structure)
             // ==========================================================
 
             // ----- CHILD OBJECT CHECK -----
@@ -448,7 +449,7 @@ public with sharing class RollupService {
                         result.isPercent  = (t2 == Schema.DisplayType.Percent);
                         result.isDate     =
                             (t2 == Schema.DisplayType.Date ||
-                             t2 == Schema.DisplayType.DateTime);
+                             t2 == Schema.DisplayType.Datetime);
                         result.fieldLabel = aggFieldDescribe2.getLabel();
                     }
                 } catch (Exception ignoreTypeEx2) {
@@ -605,7 +606,8 @@ public with sharing class RollupService {
 
                 if (rawValue2 == null) {
                     result.value = null;
-                } else if (result.isDate == true && (aggType == 'MIN' || aggType == 'MAX')) {
+                } else if (result.isDate == true &&
+                           (aggType == 'MIN' || aggType == 'MAX')) {
                     result.value = formatDateForClient(rawValue2);
                 } else {
                     result.value = String.valueOf(rawValue2);
@@ -624,17 +626,34 @@ public with sharing class RollupService {
         return result;
     }
 
+    /**
+     * Format a Date/Datetime as MM/DD/YYYY for the client.
+     * Avoids Date.format(String), which is not supported.
+     */
     private static String formatDateForClient(Object raw) {
         if (raw == null) {
             return null;
         }
+
+        Date d;
         if (raw instanceof Date) {
-            return ((Date)raw).format('MM/dd/yyyy');
+            d = (Date) raw;
+        } else if (raw instanceof Datetime) {
+            d = ((Datetime) raw).date();
+        } else {
+            // Not a date-like value; just stringify it
+            return String.valueOf(raw);
         }
-        if (raw instanceof Datetime) {
-            return ((Datetime)raw).format('MM/dd/yyyy');
-        }
-        return String.valueOf(raw);
+
+        Integer year  = d.year();
+        Integer month = d.month();
+        Integer day   = d.day();
+
+        // Zero-pad month/day so we always get MM/DD/YYYY
+        String mm = (month < 10 ? '0' : '') + String.valueOf(month);
+        String dd = (day   < 10 ? '0' : '') + String.valueOf(day);
+
+        return mm + '/' + dd + '/' + String.valueOf(year);
     }
 
     /**
