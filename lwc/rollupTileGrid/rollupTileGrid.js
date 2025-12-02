@@ -34,6 +34,7 @@ const TEXT_FIELD_AGG_TYPES = ['CONCATENATE', 'CONCATENATE_DISTINCT'];
 const FIELD_CATEGORY = {
     NUMERIC: 'numeric',
     TEXT: 'text',
+    DATE: 'date',
     UNKNOWN: 'unknown'
 };
 
@@ -56,6 +57,13 @@ const TEXT_FIELD_ALLOWED_AGG_TYPES = new Set([
     'COUNT_DISTINCT',
     'FIRST',
     'LAST'
+]);
+
+const DATE_FIELD_ALLOWED_AGG_TYPES = new Set([
+    'MAX',
+    'MIN',
+    'COUNT',
+    'COUNT_DISTINCT'
 ]);
 
 // Soft timeout so we never spin forever on a bad call.
@@ -108,15 +116,18 @@ function inferFieldCategoryFromAggregationType(rawAggType) {
 
 /**
  * Finalize the field category for a tile, taking into account any runtime
- * hints coming back from Apex (currency / percent flags).
+ * hints coming back from Apex (currency / percent / date flags).
  */
 function resolveFieldCategory(tile) {
     let category =
         tile && tile.fieldCategory ? tile.fieldCategory : FIELD_CATEGORY.UNKNOWN;
 
-    // If Apex tells us this is currency/percent, treat as numeric regardless
-    // of what was inferred from the initial aggregation type.
-    if (tile && (tile.isCurrency || tile.isPercent)) {
+    // If Apex tells us this is a date/datetime field, give it its own category
+    // so we can tailor the aggregation menu.
+    if (tile && tile.isDate) {
+        category = FIELD_CATEGORY.DATE;
+    } else if (tile && (tile.isCurrency || tile.isPercent)) {
+        // Currency/percent values are always treated as numeric.
         category = FIELD_CATEGORY.NUMERIC;
     }
 
@@ -133,6 +144,9 @@ function getAllowedAggregationsForCategory(category) {
     }
     if (category === FIELD_CATEGORY.TEXT) {
         return TEXT_FIELD_ALLOWED_AGG_TYPES;
+    }
+    if (category === FIELD_CATEGORY.DATE) {
+        return DATE_FIELD_ALLOWED_AGG_TYPES;
     }
     return null;
 }
@@ -679,6 +693,7 @@ export default class RollupTileGrid extends LightningElement {
             recordCount: null,
             isCurrency: false,
             isPercent: false,
+            isDate: false,
             fieldLabel: null,
             isAggregationMenuOpen: false,
 
@@ -718,8 +733,14 @@ export default class RollupTileGrid extends LightningElement {
                 tile.aggregateType || tile.initialAggregationType || 'SUM'
             ) || 'SUM';
 
+        const isDateAggregate =
+            tile &&
+            tile.isDate &&
+            (aggregateType === 'MIN' || aggregateType === 'MAX');
+
         // Numeric aggregate?
-        const isNumericAggregate = NUMERIC_TYPES.includes(aggregateType);
+        const isNumericAggregate =
+            NUMERIC_TYPES.includes(aggregateType) && !isDateAggregate;
 
         // Decide which "field category" this tile belongs to for dropdown filtering.
         const fieldCategory = resolveFieldCategory(tile);
@@ -757,6 +778,7 @@ export default class RollupTileGrid extends LightningElement {
                 }
             }
         } else {
+            // For text-like and date aggregates, use the string as-is.
             displayValue = tile.value;
         }
 
@@ -924,6 +946,7 @@ export default class RollupTileGrid extends LightningElement {
                           recordCount: null,
                           isCurrency: false,
                           isPercent: false,
+                          isDate: false,
                           fieldLabel: null
                       })
                     : tile
@@ -950,6 +973,7 @@ export default class RollupTileGrid extends LightningElement {
                           recordCount: null,
                           isCurrency: false,
                           isPercent: false,
+                          isDate: false,
                           fieldLabel: null
                       })
                     : tile
@@ -975,6 +999,7 @@ export default class RollupTileGrid extends LightningElement {
                       recordCount: null,
                       isCurrency: false,
                       isPercent: false,
+                      isDate: false,
                       fieldLabel: null
                   })
                 : tile
@@ -1034,6 +1059,7 @@ export default class RollupTileGrid extends LightningElement {
                               recordCount: null,
                               isCurrency: false,
                               isPercent: false,
+                              isDate: false,
                               fieldLabel: null
                           })
                         : tile
@@ -1046,6 +1072,7 @@ export default class RollupTileGrid extends LightningElement {
             let recordCount = null;
             let isCurrency = false;
             let isPercent = false;
+            let isDate = false;
             let fieldLabel = null;
 
             if (data.errorMessage) {
@@ -1055,6 +1082,7 @@ export default class RollupTileGrid extends LightningElement {
                 recordCount = data.recordCount;
                 isCurrency = !!data.isCurrency;
                 isPercent = !!data.isPercent;
+                isDate = !!data.isDate;
                 fieldLabel = data.fieldLabel;
             } else {
                 errorMsg = null;
@@ -1062,6 +1090,7 @@ export default class RollupTileGrid extends LightningElement {
                 recordCount = data.recordCount;
                 isCurrency = !!data.isCurrency;
                 isPercent = !!data.isPercent;
+                isDate = !!data.isDate;
                 fieldLabel = data.fieldLabel;
             }
 
@@ -1075,6 +1104,7 @@ export default class RollupTileGrid extends LightningElement {
                           recordCount,
                           isCurrency,
                           isPercent,
+                          isDate,
                           fieldLabel
                       })
                     : tile
@@ -1112,6 +1142,7 @@ export default class RollupTileGrid extends LightningElement {
                           recordCount: null,
                           isCurrency: false,
                           isPercent: false,
+                          isDate: false,
                           fieldLabel: null
                       })
                     : tile
