@@ -606,7 +606,7 @@ export default class RollupTileGrid extends LightningElement {
      */
     get childObjectLabelSingular() {
         const apiName = this.aggregateObjectApiNameForLabel;
-        if (!apiName || typeof apiName !== 'string') {
+        if (!apiName or typeof apiName !== 'string') {
             return 'record';
         }
 
@@ -795,8 +795,15 @@ export default class RollupTileGrid extends LightningElement {
                 const recordWord = 'records';
                 summaryRecordLabel = `${tile.recordCount} ${objectLabel} ${recordWord}`;
             } else {
+                let formattedCount;
+                try {
+                    formattedCount = new Intl.NumberFormat(LOCALE).format(count);
+                } catch (_e) {
+                    formattedCount = count.toString();
+                }
+
                 const recordWord = count === 1 ? 'record' : 'records';
-                summaryRecordLabel = `${count} ${objectLabel} ${recordWord}`;
+                summaryRecordLabel = `${formattedCount} ${objectLabel} ${recordWord}`;
             }
         }
 
