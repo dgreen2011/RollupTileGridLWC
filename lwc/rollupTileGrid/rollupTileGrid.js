@@ -606,7 +606,7 @@ export default class RollupTileGrid extends LightningElement {
      */
     get childObjectLabelSingular() {
         const apiName = this.aggregateObjectApiNameForLabel;
-        if (!apiName or typeof apiName !== 'string') {
+        if (!apiName || typeof apiName !== 'string') {
             return 'record';
         }
 
