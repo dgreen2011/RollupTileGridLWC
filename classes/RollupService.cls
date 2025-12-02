@@ -7,6 +7,7 @@ public with sharing class RollupService {
         // Formatting hints for the client
         @AuraEnabled public Boolean isCurrency;
         @AuraEnabled public Boolean isPercent;
+        @AuraEnabled public Boolean isDate;
         // Front-end label for the aggregate field (not the API name)
         @AuraEnabled public String  fieldLabel;
     }
@@ -208,6 +209,9 @@ public with sharing class RollupService {
                             Schema.DisplayType t = aggFieldDescribe.getType();
                             result.isCurrency = (t == Schema.DisplayType.Currency);
                             result.isPercent  = (t == Schema.DisplayType.Percent);
+                            result.isDate     =
+                                (t == Schema.DisplayType.Date ||
+                                 t == Schema.DisplayType.DateTime);
                             result.fieldLabel = aggFieldDescribe.getLabel();
                         }
                     } catch (Exception ignoreTypeEx) {
@@ -323,7 +327,13 @@ public with sharing class RollupService {
                     List<SObject> rows = Database.query(soql);
                     if (!rows.isEmpty()) {
                         Object raw = rows[0].get(aggregateFieldApiName);
-                        result.value = (raw == null) ? null : String.valueOf(raw);
+                        if (raw == null) {
+                            result.value = null;
+                        } else if (result.isDate == true) {
+                            result.value = formatDateForClient(raw);
+                        } else {
+                            result.value = String.valueOf(raw);
+                        }
                     }
 
                     String countSoql =
@@ -362,8 +372,14 @@ public with sharing class RollupService {
                     Object rawValue = ar.get('aggValue');
                     Object total = ar.get('recordCount');
 
-                    result.value =
-                        (rawValue == null) ? null : String.valueOf(rawValue);
+                    if (rawValue == null) {
+                        result.value = null;
+                    } else if (result.isDate == true && (aggType == 'MIN' || aggType == 'MAX')) {
+                        result.value = formatDateForClient(rawValue);
+                    } else {
+                        result.value = String.valueOf(rawValue);
+                    }
+
                     result.recordCount =
                         (total == null) ? null : Integer.valueOf(String.valueOf(total));
                 }
@@ -372,7 +388,7 @@ public with sharing class RollupService {
             }
 
             // ==========================================================
-            // EXISTING CHILD-ONLY MODE (unchanged)
+            // EXISTING CHILD-ONLY MODE (unchanged shape)
             // ==========================================================
 
             // ----- CHILD OBJECT CHECK -----
@@ -430,6 +446,9 @@ public with sharing class RollupService {
                         Schema.DisplayType t2 = aggFieldDescribe2.getType();
                         result.isCurrency = (t2 == Schema.DisplayType.Currency);
                         result.isPercent  = (t2 == Schema.DisplayType.Percent);
+                        result.isDate     =
+                            (t2 == Schema.DisplayType.Date ||
+                             t2 == Schema.DisplayType.DateTime);
                         result.fieldLabel = aggFieldDescribe2.getLabel();
                     }
                 } catch (Exception ignoreTypeEx2) {
@@ -539,7 +558,13 @@ public with sharing class RollupService {
                 List<SObject> rows2 = Database.query(soql2);
                 if (!rows2.isEmpty()) {
                     Object raw2 = rows2[0].get(aggregateFieldApiName);
-                    result.value = (raw2 == null) ? null : String.valueOf(raw2);
+                    if (raw2 == null) {
+                        result.value = null;
+                    } else if (result.isDate == true) {
+                        result.value = formatDateForClient(raw2);
+                    } else {
+                        result.value = String.valueOf(raw2);
+                    }
                 }
 
                 String countSoql2 =
@@ -578,8 +603,14 @@ public with sharing class RollupService {
                 Object rawValue2 = ar3.get('aggValue');
                 Object total3 = ar3.get('recordCount');
 
-                result.value =
-                    (rawValue2 == null) ? null : String.valueOf(rawValue2);
+                if (rawValue2 == null) {
+                    result.value = null;
+                } else if (result.isDate == true && (aggType == 'MIN' || aggType == 'MAX')) {
+                    result.value = formatDateForClient(rawValue2);
+                } else {
+                    result.value = String.valueOf(rawValue2);
+                }
+
                 result.recordCount =
                     (total3 == null) ? null : Integer.valueOf(String.valueOf(total3));
             }
@@ -591,6 +622,19 @@ public with sharing class RollupService {
         }
 
         return result;
+    }
+
+    private static String formatDateForClient(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Date) {
+            return ((Date)raw).format('MM/dd/yyyy');
+        }
+        if (raw instanceof Datetime) {
+            return ((Datetime)raw).format('MM/dd/yyyy');
+        }
+        return String.valueOf(raw);
     }
 
     /**
