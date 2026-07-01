@@ -430,6 +430,121 @@ private class RollupServiceTest {
         );
     }
 
+    @IsTest
+    static void testUnsafeFilterConditionIsRejectedBeforeQuery() {
+        Account acc = createTestAccount();
+        createTestOpportunities(acc);
+
+        RollupService.RollupResult result = RollupService.getRollup(
+            acc.Id,
+            'Opportunity',
+            'AccountId',
+            'Amount',
+            'SUM',
+            'Amount > 0 ORDER BY Name',
+            null,
+            null
+        );
+
+        System.assertNotEquals(null, result.errorMessage);
+        System.assert(
+            result.errorMessage.contains('unsupported clause'),
+            'Unsafe query-shaping clauses should be rejected before dynamic SOQL runs.'
+        );
+    }
+
+    @IsTest
+    static void testInvalidAggregationTypeIsRejected() {
+        Account acc = createTestAccount();
+        createTestOpportunities(acc);
+
+        RollupService.RollupResult result = RollupService.getRollup(
+            acc.Id,
+            'Opportunity',
+            'AccountId',
+            'Amount',
+            'MEDIAN',
+            null,
+            null,
+            null
+        );
+
+        System.assertEquals(
+            'Configuration error: aggregation type "MEDIAN" is not supported.',
+            result.errorMessage
+        );
+    }
+
+    @IsTest
+    static void testRelationshipFieldMustPointToParentObject() {
+        Account acc = createTestAccount();
+        createTestOpportunities(acc);
+
+        RollupService.RollupResult result = RollupService.getRollup(
+            acc.Id,
+            'Opportunity',
+            'OwnerId',
+            'Amount',
+            'SUM',
+            null,
+            null,
+            null
+        );
+
+        System.assertNotEquals(null, result.errorMessage);
+        System.assert(
+            result.errorMessage.contains('must look up to Account'),
+            'Existing lookup fields should still be rejected when they point to the wrong object.'
+        );
+    }
+
+    @IsTest
+    static void testSumRequiresNumericAggregateField() {
+        Account acc = createTestAccount();
+        createTestOpportunities(acc);
+
+        RollupService.RollupResult result = RollupService.getRollup(
+            acc.Id,
+            'Opportunity',
+            'AccountId',
+            'StageName',
+            'SUM',
+            null,
+            null,
+            null
+        );
+
+        System.assertEquals(
+            'Configuration error: aggregation type SUM requires a numeric aggregate field.',
+            result.errorMessage
+        );
+    }
+
+    @IsTest
+    static void testConcatenateLimitReturnsConfigurationError() {
+        Account acc = createTestAccount();
+        createTestOpportunities(acc);
+        RollupService.maxConcatenateRows = 2;
+
+        RollupService.RollupResult result = RollupService.getRollup(
+            acc.Id,
+            'Opportunity',
+            'AccountId',
+            'Name',
+            'CONCATENATE',
+            null,
+            null,
+            null
+        );
+
+        System.assertEquals(3, result.recordCount);
+        System.assertNotEquals(null, result.errorMessage);
+        System.assert(
+            result.errorMessage.contains('limited to 2 records'),
+            'CONCATENATE should fail closed instead of loading more rows than the configured cap.'
+        );
+    }
+
     // ---------- Grandchild rollup tests ----------
 
     @IsTest

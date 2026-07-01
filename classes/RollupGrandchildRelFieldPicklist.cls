@@ -42,8 +42,7 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
                 String childApi   = childDescribe.getName();
                 String childLabel = childDescribe.getLabel();
 
-                // Only include custom child objects, plus Account and Contact
-                if (!childDescribe.isCustom() && childApi != 'Account' && childApi != 'Contact') {
+                if (!isRollupCandidateObject(childDescribe)) {
                     continue;
                 }
 
@@ -58,8 +57,7 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
                     String grandApi   = grandDescribe.getName();
                     String grandLabel = grandDescribe.getLabel();
 
-                    // Only include custom grandchild objects, plus Account and Contact
-                    if (!grandDescribe.isCustom() && grandApi != 'Account' && grandApi != 'Contact') {
+                    if (!isRollupCandidateObject(grandDescribe)) {
                         continue;
                     }
 
@@ -136,5 +134,13 @@ global with sharing class RollupGrandchildRelFieldPicklist extends VisualEditor.
     // and avoids weird Community/App Builder bugs.
     global override Boolean isValid(Object attributeValue) {
         return true;
+    }
+
+    private static Boolean isRollupCandidateObject(Schema.DescribeSObjectResult describeResult) {
+        return describeResult != null &&
+            !describeResult.isCustomSetting() &&
+            !describeResult.isDeprecatedAndHidden() &&
+            describeResult.isAccessible() &&
+            describeResult.isQueryable();
     }
 }

@@ -41,8 +41,7 @@ global with sharing class RollupGrandchildObjectPicklist extends VisualEditor.Dy
                 String childApi   = childDescribe.getName();
                 String childLabel = childDescribe.getLabel();
 
-                // Only include custom child objects, plus Account and Contact
-                if (!childDescribe.isCustom() && childApi != 'Account' && childApi != 'Contact') {
+                if (!isRollupCandidateObject(childDescribe)) {
                     continue;
                 }
 
@@ -57,8 +56,7 @@ global with sharing class RollupGrandchildObjectPicklist extends VisualEditor.Dy
                     String grandApi   = grandDescribe.getName();
                     String grandLabel = grandDescribe.getLabel();
 
-                    // Only include custom grandchild objects, plus Account and Contact
-                    if (!grandDescribe.isCustom() && grandApi != 'Account' && grandApi != 'Contact') {
+                    if (!isRollupCandidateObject(grandDescribe)) {
                         continue;
                     }
 
@@ -98,5 +96,13 @@ global with sharing class RollupGrandchildObjectPicklist extends VisualEditor.Dy
     // Important so getValues() isn’t called again at runtime and doesn’t break pages.
     global override Boolean isValid(Object attributeValue) {
         return true;
+    }
+
+    private static Boolean isRollupCandidateObject(Schema.DescribeSObjectResult describeResult) {
+        return describeResult != null &&
+            !describeResult.isCustomSetting() &&
+            !describeResult.isDeprecatedAndHidden() &&
+            describeResult.isAccessible() &&
+            describeResult.isQueryable();
     }
 }

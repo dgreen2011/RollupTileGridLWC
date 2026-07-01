@@ -1,5 +1,7 @@
 public with sharing class RollupService {
 
+    @TestVisible private static Integer maxConcatenateRows = 2000;
+
     public class RollupResult {
         @AuraEnabled public String  value;
         @AuraEnabled public Integer recordCount;
@@ -68,6 +70,21 @@ public with sharing class RollupService {
         if (aggType == 'AVG') {
             aggType = 'AVERAGE';
         }
+        if (!isSupportedAggregationType(aggType)) {
+            result.errorMessage =
+                'Configuration error: aggregation type "' + aggType + '" is not supported.';
+            return result;
+        }
+
+        String filterValidationError = validateFilterCondition(filterCondition);
+        if (filterValidationError != null) {
+            result.errorMessage = filterValidationError;
+            return result;
+        }
+        String safeFilterCondition =
+            String.isBlank(filterCondition) ? null : filterCondition.trim();
+
+        String parentObjectApiName = parentId.getSObjectType().getDescribe().getName();
 
         try {
             Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
@@ -92,6 +109,12 @@ public with sharing class RollupService {
 
                 Schema.SObjectType childType = globalDescribe.get(childObjectApiName);
                 Schema.DescribeSObjectResult childDescribe = childType.getDescribe();
+                String childAccessError =
+                    validateObjectReadable(childDescribe, 'child object', childObjectApiName);
+                if (childAccessError != null) {
+                    result.errorMessage = childAccessError;
+                    return result;
+                }
                 Map<String, Schema.SObjectField> childFields = childDescribe.fields.getMap();
 
                 // 2) Validate relationship field on child (child -> parent)
@@ -102,6 +125,20 @@ public with sharing class RollupService {
                     result.errorMessage =
                         'Configuration error: relationship field "' + labelForMessage +
                         '" was not found on ' + childObjectApiName + '.';
+                    return result;
+                }
+                Schema.DescribeFieldResult childRelFieldDescribe =
+                    childFields.get(relationshipFieldApiName).getDescribe();
+                String childRelValidationError = validateRelationshipField(
+                    childRelFieldDescribe,
+                    String.isBlank(originalRelationshipField)
+                        ? relationshipFieldApiName
+                        : originalRelationshipField,
+                    childObjectApiName,
+                    parentObjectApiName
+                );
+                if (childRelValidationError != null) {
+                    result.errorMessage = childRelValidationError;
                     return result;
                 }
 
@@ -132,6 +169,12 @@ public with sharing class RollupService {
 
                 Schema.SObjectType grandchildType = globalDescribe.get(grandchildObjectApiName);
                 Schema.DescribeSObjectResult grandchildDescribe = grandchildType.getDescribe();
+                String grandchildAccessError =
+                    validateObjectReadable(grandchildDescribe, 'grandchild object', grandchildObjectApiName);
+                if (grandchildAccessError != null) {
+                    result.errorMessage = grandchildAccessError;
+                    return result;
+                }
                 Map<String, Schema.SObjectField> grandchildFields =
                     grandchildDescribe.fields.getMap();
 
@@ -148,6 +191,16 @@ public with sharing class RollupService {
 
                 Schema.DescribeFieldResult grandRelFieldDescribe =
                     grandchildFields.get(grandchildRelationshipFieldApiName).getDescribe();
+
+                if (!grandRelFieldDescribe.isAccessible()) {
+                    String labelForMessage = String.isBlank(originalGrandchildRelationshipField)
+                        ? grandchildRelationshipFieldApiName
+                        : originalGrandchildRelationshipField;
+                    result.errorMessage =
+                        'Configuration error: relationship field "' + labelForMessage +
+                        '" on ' + grandchildObjectApiName + ' is not readable for the current user.';
+                    return result;
+                }
 
                 if (grandRelFieldDescribe.getType() != Schema.DisplayType.REFERENCE) {
                     String labelForMessage = String.isBlank(originalGrandchildRelationshipField)
@@ -201,22 +254,21 @@ public with sharing class RollupService {
                         return result;
                     }
 
-                    // Capture basic type information so the client can format values nicely.
-                    try {
-                        Schema.DescribeFieldResult aggFieldDescribe =
-                            grandchildFields.get(aggregateFieldApiName).getDescribe();
-                        if (aggFieldDescribe != null) {
-                            Schema.DisplayType t = aggFieldDescribe.getType();
-                            result.isCurrency = (t == Schema.DisplayType.Currency);
-                            result.isPercent  = (t == Schema.DisplayType.Percent);
-                            result.isDate     =
-                                (t == Schema.DisplayType.Date ||
-                                 t == Schema.DisplayType.Datetime);
-                            result.fieldLabel = aggFieldDescribe.getLabel();
-                        }
-                    } catch (Exception ignoreTypeEx) {
-                        // Never let describe/formatting hints break the rollup itself.
+                    Schema.DescribeFieldResult aggFieldDescribe =
+                        grandchildFields.get(aggregateFieldApiName).getDescribe();
+                    String aggregateValidationError = validateAggregateField(
+                        aggFieldDescribe,
+                        String.isBlank(originalAggregateField)
+                            ? aggregateFieldApiName
+                            : originalAggregateField,
+                        aggType,
+                        grandchildObjectApiName
+                    );
+                    if (aggregateValidationError != null) {
+                        result.errorMessage = aggregateValidationError;
+                        return result;
                     }
+                    setFormattingHints(result, aggFieldDescribe);
                 }
 
                 // 6) WHERE clause:
@@ -227,8 +279,8 @@ public with sharing class RollupService {
                     grandchildRelationshipFieldApiName +
                     ' IN (SELECT Id FROM ' + childObjectApiName +
                     ' WHERE ' + relationshipFieldApiName + ' = :parentId)';
-                if (!String.isBlank(filterCondition)) {
-                    whereClause += ' AND (' + filterCondition + ')';
+                if (!String.isBlank(safeFilterCondition)) {
+                    whereClause += ' AND (' + safeFilterCondition + ')';
                 }
 
                 // =========================
@@ -275,12 +327,25 @@ public with sharing class RollupService {
                 // CONCATENATE / CONCATENATE_DISTINCT
                 // =========================
                 if (aggType == 'CONCATENATE' || aggType == 'CONCATENATE_DISTINCT') {
+                    Integer concatTotal = Database.countQuery(
+                        'SELECT COUNT() FROM ' + grandchildObjectApiName +
+                        ' WHERE ' + whereClause
+                    );
+                    result.recordCount = concatTotal;
+                    if (concatTotal > maxConcatenateRows) {
+                        result.errorMessage =
+                            'Configuration error: CONCATENATE rollups are limited to ' +
+                            maxConcatenateRows +
+                            ' records. Add a filter or use a counted aggregation instead.';
+                        return result;
+                    }
 
                     String soql =
                         'SELECT ' + aggregateFieldApiName +
                         ' FROM ' + grandchildObjectApiName +
                         ' WHERE ' + whereClause +
-                        ' ORDER BY ' + aggregateFieldApiName;
+                        ' ORDER BY ' + aggregateFieldApiName +
+                        ' LIMIT ' + maxConcatenateRows;
 
                     List<SObject> rows = Database.query(soql);
                     List<String> values = new List<String>();
@@ -303,7 +368,6 @@ public with sharing class RollupService {
                         }
                     }
 
-                    result.recordCount = rows.size();
                     result.value = values.isEmpty()
                         ? null
                         : String.join(values, '; ');
@@ -404,6 +468,12 @@ public with sharing class RollupService {
 
             Schema.SObjectType childType2 = globalDescribe.get(childObjectApiName);
             Schema.DescribeSObjectResult childDescribe2 = childType2.getDescribe();
+            String childAccessError2 =
+                validateObjectReadable(childDescribe2, 'child object', childObjectApiName);
+            if (childAccessError2 != null) {
+                result.errorMessage = childAccessError2;
+                return result;
+            }
             Map<String, Schema.SObjectField> childFields2 = childDescribe2.fields.getMap();
 
             // ----- RELATIONSHIP FIELD CHECK -----
@@ -414,6 +484,20 @@ public with sharing class RollupService {
                 result.errorMessage =
                     'Configuration error: relationship field "' + labelForMessage +
                     '" was not found on ' + childObjectApiName + '.';
+                return result;
+            }
+            Schema.DescribeFieldResult relationshipFieldDescribe2 =
+                childFields2.get(relationshipFieldApiName).getDescribe();
+            String relationshipValidationError2 = validateRelationshipField(
+                relationshipFieldDescribe2,
+                String.isBlank(originalRelationshipField)
+                    ? relationshipFieldApiName
+                    : originalRelationshipField,
+                childObjectApiName,
+                parentObjectApiName
+            );
+            if (relationshipValidationError2 != null) {
+                result.errorMessage = relationshipValidationError2;
                 return result;
             }
 
@@ -439,28 +523,27 @@ public with sharing class RollupService {
                     return result;
                 }
 
-                // Capture basic type information so the client can format values nicely.
-                try {
-                    Schema.DescribeFieldResult aggFieldDescribe2 =
-                        childFields2.get(aggregateFieldApiName).getDescribe();
-                    if (aggFieldDescribe2 != null) {
-                        Schema.DisplayType t2 = aggFieldDescribe2.getType();
-                        result.isCurrency = (t2 == Schema.DisplayType.Currency);
-                        result.isPercent  = (t2 == Schema.DisplayType.Percent);
-                        result.isDate     =
-                            (t2 == Schema.DisplayType.Date ||
-                             t2 == Schema.DisplayType.Datetime);
-                        result.fieldLabel = aggFieldDescribe2.getLabel();
-                    }
-                } catch (Exception ignoreTypeEx2) {
-                    // Never let describe/formatting hints break the rollup itself.
+                Schema.DescribeFieldResult aggFieldDescribe2 =
+                    childFields2.get(aggregateFieldApiName).getDescribe();
+                String aggregateValidationError2 = validateAggregateField(
+                    aggFieldDescribe2,
+                    String.isBlank(originalAggregateField)
+                        ? aggregateFieldApiName
+                        : originalAggregateField,
+                    aggType,
+                    childObjectApiName
+                );
+                if (aggregateValidationError2 != null) {
+                    result.errorMessage = aggregateValidationError2;
+                    return result;
                 }
+                setFormattingHints(result, aggFieldDescribe2);
             }
 
             // ----- WHERE CLAUSE -----
             String whereClause2 = relationshipFieldApiName + ' = :parentId';
-            if (!String.isBlank(filterCondition)) {
-                whereClause2 += ' AND (' + filterCondition + ')';
+            if (!String.isBlank(safeFilterCondition)) {
+                whereClause2 += ' AND (' + safeFilterCondition + ')';
             }
 
             // =========================
@@ -507,12 +590,25 @@ public with sharing class RollupService {
             // CONCATENATE / CONCATENATE_DISTINCT
             // =========================
             if (aggType == 'CONCATENATE' || aggType == 'CONCATENATE_DISTINCT') {
+                Integer concatTotal2 = Database.countQuery(
+                    'SELECT COUNT() FROM ' + childObjectApiName +
+                    ' WHERE ' + whereClause2
+                );
+                result.recordCount = concatTotal2;
+                if (concatTotal2 > maxConcatenateRows) {
+                    result.errorMessage =
+                        'Configuration error: CONCATENATE rollups are limited to ' +
+                        maxConcatenateRows +
+                        ' records. Add a filter or use a counted aggregation instead.';
+                    return result;
+                }
 
                 String soql2 =
                     'SELECT ' + aggregateFieldApiName +
                     ' FROM ' + childObjectApiName +
                     ' WHERE ' + whereClause2 +
-                    ' ORDER BY ' + aggregateFieldApiName;
+                    ' ORDER BY ' + aggregateFieldApiName +
+                    ' LIMIT ' + maxConcatenateRows;
 
                 List<SObject> rows2 = Database.query(soql2);
                 List<String> values2 = new List<String>();
@@ -535,7 +631,6 @@ public with sharing class RollupService {
                     }
                 }
 
-                result.recordCount = rows2.size();
                 result.value = values2.isEmpty()
                     ? null
                     : String.join(values2, '; ');
@@ -624,6 +719,235 @@ public with sharing class RollupService {
         }
 
         return result;
+    }
+
+    private static Boolean isSupportedAggregationType(String aggType) {
+        return aggType == 'SUM' ||
+            aggType == 'AVERAGE' ||
+            aggType == 'MAX' ||
+            aggType == 'MIN' ||
+            aggType == 'COUNT' ||
+            aggType == 'COUNT_DISTINCT' ||
+            aggType == 'CONCATENATE' ||
+            aggType == 'CONCATENATE_DISTINCT' ||
+            aggType == 'FIRST' ||
+            aggType == 'LAST';
+    }
+
+    private static String validateObjectReadable(
+        Schema.DescribeSObjectResult objectDescribe,
+        String objectRole,
+        String objectApiName
+    ) {
+        if (objectDescribe == null) {
+            return 'Configuration error: ' + objectRole + ' "' + objectApiName + '" was not found.';
+        }
+        if (!objectDescribe.isAccessible() || !objectDescribe.isQueryable()) {
+            return 'Configuration error: ' + objectRole + ' "' + objectApiName +
+                '" is not readable for the current user.';
+        }
+        return null;
+    }
+
+    private static String validateRelationshipField(
+        Schema.DescribeFieldResult fieldDescribe,
+        String fieldLabelForMessage,
+        String sourceObjectApiName,
+        String targetObjectApiName
+    ) {
+        if (fieldDescribe == null) {
+            return 'Configuration error: relationship field "' + fieldLabelForMessage +
+                '" was not found on ' + sourceObjectApiName + '.';
+        }
+        if (!fieldDescribe.isAccessible()) {
+            return 'Configuration error: relationship field "' + fieldLabelForMessage +
+                '" on ' + sourceObjectApiName + ' is not readable for the current user.';
+        }
+        if (fieldDescribe.getType() != Schema.DisplayType.REFERENCE) {
+            return 'Configuration error: relationship field "' + fieldLabelForMessage +
+                '" on ' + sourceObjectApiName +
+                ' must be a lookup field that points to ' + targetObjectApiName + '.';
+        }
+
+        Boolean pointsToTarget = false;
+        for (Schema.SObjectType refType : fieldDescribe.getReferenceTo()) {
+            if (refType != null && refType.getDescribe().getName() == targetObjectApiName) {
+                pointsToTarget = true;
+                break;
+            }
+        }
+        if (!pointsToTarget) {
+            return 'Configuration error: relationship field "' + fieldLabelForMessage +
+                '" on ' + sourceObjectApiName +
+                ' must look up to ' + targetObjectApiName + '.';
+        }
+        return null;
+    }
+
+    private static String validateAggregateField(
+        Schema.DescribeFieldResult fieldDescribe,
+        String fieldLabelForMessage,
+        String aggType,
+        String objectApiName
+    ) {
+        if (fieldDescribe == null) {
+            return 'Configuration error: aggregate field "' + fieldLabelForMessage +
+                '" was not found on ' + objectApiName + '.';
+        }
+        if (!fieldDescribe.isAccessible()) {
+            return 'Configuration error: aggregate field "' + fieldLabelForMessage +
+                '" on ' + objectApiName + ' is not readable for the current user.';
+        }
+        if (aggType == 'COUNT') {
+            return null;
+        }
+
+        Schema.DisplayType t = fieldDescribe.getType();
+        if ((aggType == 'SUM' || aggType == 'AVERAGE') && !isNumericFieldType(t)) {
+            return 'Configuration error: aggregation type ' + aggType +
+                ' requires a numeric aggregate field.';
+        }
+        if (aggType == 'COUNT_DISTINCT' && !fieldDescribe.isGroupable()) {
+            return 'Configuration error: aggregate field "' + fieldLabelForMessage +
+                '" cannot be grouped safely for aggregation type ' + aggType + '.';
+        }
+
+        return null;
+    }
+
+    private static Boolean isNumericFieldType(Schema.DisplayType t) {
+        return t == Schema.DisplayType.Currency ||
+            t == Schema.DisplayType.Double ||
+            t == Schema.DisplayType.Integer ||
+            t == Schema.DisplayType.Long ||
+            t == Schema.DisplayType.Percent;
+    }
+
+    private static void setFormattingHints(
+        RollupResult result,
+        Schema.DescribeFieldResult fieldDescribe
+    ) {
+        if (result == null || fieldDescribe == null) {
+            return;
+        }
+
+        Schema.DisplayType t = fieldDescribe.getType();
+        result.isCurrency = (t == Schema.DisplayType.Currency);
+        result.isPercent  = (t == Schema.DisplayType.Percent);
+        result.isDate     =
+            (t == Schema.DisplayType.Date ||
+             t == Schema.DisplayType.Datetime);
+        result.fieldLabel = fieldDescribe.getLabel();
+    }
+
+    private static String validateFilterCondition(String rawFilterCondition) {
+        if (String.isBlank(rawFilterCondition)) {
+            return null;
+        }
+
+        String trimmed = rawFilterCondition.trim();
+        String quoteStateError = validateFilterQuotesAndParentheses(trimmed);
+        if (quoteStateError != null) {
+            return quoteStateError;
+        }
+
+        String stripped = stripQuotedLiterals(trimmed);
+        String lowered = ' ' + stripped.toLowerCase().replaceAll('\\s+', ' ') + ' ';
+
+        if (lowered.contains(';') ||
+            lowered.contains('--') ||
+            lowered.contains('/*') ||
+            lowered.contains('*/')) {
+            return 'Configuration error: additional SOQL filter contains unsupported comment or statement syntax.';
+        }
+
+        List<String> forbiddenClauses = new List<String>{
+            ' select ',
+            ' from ',
+            ' where ',
+            ' order by ',
+            ' group by ',
+            ' having ',
+            ' limit ',
+            ' offset ',
+            ' all rows ',
+            ' for update ',
+            ' with ',
+            ' typeof ',
+            ' fields('
+        };
+        for (String forbiddenClause : forbiddenClauses) {
+            if (lowered.contains(forbiddenClause)) {
+                return 'Configuration error: additional SOQL filter contains unsupported clause "' +
+                    forbiddenClause.trim() + '".';
+            }
+        }
+
+        return null;
+    }
+
+    private static String validateFilterQuotesAndParentheses(String value) {
+        Integer depth = 0;
+        Boolean inQuote = false;
+        String quote = '\'';
+        String backslash = '\\';
+
+        for (Integer i = 0; i < value.length(); i++) {
+            String ch = value.substring(i, i + 1);
+            if (inQuote && ch == backslash && i + 1 < value.length()) {
+                i++;
+                continue;
+            }
+            if (ch == quote) {
+                inQuote = !inQuote;
+                continue;
+            }
+            if (inQuote) {
+                continue;
+            }
+            if (ch == '(') {
+                depth++;
+            } else if (ch == ')') {
+                depth--;
+                if (depth < 0) {
+                    return 'Configuration error: additional SOQL filter has unbalanced parentheses.';
+                }
+            }
+        }
+
+        if (inQuote) {
+            return 'Configuration error: additional SOQL filter has an unterminated string literal.';
+        }
+        if (depth != 0) {
+            return 'Configuration error: additional SOQL filter has unbalanced parentheses.';
+        }
+        return null;
+    }
+
+    private static String stripQuotedLiterals(String value) {
+        String output = '';
+        Boolean inQuote = false;
+        String quote = '\'';
+        String backslash = '\\';
+
+        for (Integer i = 0; i < value.length(); i++) {
+            String ch = value.substring(i, i + 1);
+            if (inQuote && ch == backslash && i + 1 < value.length()) {
+                output += '  ';
+                i++;
+                continue;
+            }
+            if (ch == quote) {
+                inQuote = !inQuote;
+                output += ' ';
+            } else if (inQuote) {
+                output += ' ';
+            } else {
+                output += ch;
+            }
+        }
+
+        return output;
     }
 
     /**

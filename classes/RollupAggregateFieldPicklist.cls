@@ -94,8 +94,7 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
             String childApi   = childDescribe.getName();
             String childLabel = childDescribe.getLabel();
 
-            // *** Filter: only custom objects, plus Account / Contact ***
-            if (!childDescribe.isCustom() && childApi != 'Account' && childApi != 'Contact') {
+            if (!isRollupCandidateObject(childDescribe)) {
                 continue;
             }
 
@@ -163,8 +162,7 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
                 String grandApi   = grandDescribe.getName();
                 String grandLabel = grandDescribe.getLabel();
 
-                // *** Filter: only custom objects, plus Account / Contact ***
-                if (!grandDescribe.isCustom() && grandApi != 'Account' && grandApi != 'Contact') {
+                if (!isRollupCandidateObject(grandDescribe)) {
                     continue;
                 }
 
@@ -247,8 +245,7 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
             String objectApi   = sDescribe.getName();
             String objectLabel = sDescribe.getLabel();
 
-            // *** Filter: only custom objects, plus Account / Contact ***
-            if (!sDescribe.isCustom() && objectApi != 'Account' && objectApi != 'Contact') {
+            if (!isRollupCandidateObject(sDescribe)) {
                 continue;
             }
 
@@ -307,7 +304,17 @@ global with sharing class RollupAggregateFieldPicklist extends VisualEditor.Dyna
             t == Schema.DisplayType.Percent  ||
             t == Schema.DisplayType.Date     ||
             t == Schema.DisplayType.DateTime ||
+            t == Schema.DisplayType.Picklist ||
+            t == Schema.DisplayType.Boolean  ||
             t == Schema.DisplayType.String;
+    }
+
+    private static Boolean isRollupCandidateObject(Schema.DescribeSObjectResult describeResult) {
+        return describeResult != null &&
+            !describeResult.isCustomSetting() &&
+            !describeResult.isDeprecatedAndHidden() &&
+            describeResult.isAccessible() &&
+            describeResult.isQueryable();
     }
 
     // Prevents Salesforce from re-calling getValues() during validation

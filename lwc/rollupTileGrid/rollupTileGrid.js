@@ -997,9 +997,14 @@ export default class RollupTileGrid extends LightningElement {
             return;
         }
 
-        // If this tile doesn't have an aggregate field configured, surface a
-        // clear configuration message instead of letting Apex error out.
-        if (!currentTile.aggregateFieldApiName) {
+        const currentAggregateType =
+            this.normalizeAggregationType(
+                currentTile.aggregateType || currentTile.initialAggregationType
+            ) || 'SUM';
+
+        // COUNT does not require an aggregate field; all other aggregation
+        // types do.
+        if (!currentTile.aggregateFieldApiName && currentAggregateType !== 'COUNT') {
             const configMsg = `Tile ${index} is not fully configured. Set "Tile ${index} Aggregate Field" in the Lightning App Builder.`;
             this.tiles = this.tiles.map((tile) =>
                 tile.index === index
@@ -1061,9 +1066,11 @@ export default class RollupTileGrid extends LightningElement {
             }
 
             let aggregateTypeToUse =
-                tileAfterReset.aggregateType ||
-                tileAfterReset.initialAggregationType ||
-                'SUM';
+                this.normalizeAggregationType(
+                    tileAfterReset.aggregateType ||
+                        tileAfterReset.initialAggregationType ||
+                        'SUM'
+                ) || 'SUM';
 
             // NOTE: we now pass 'COUNT' straight through to Apex so it can
             // execute a true COUNT() branch instead of behaving like SUM.
